@@ -1,4 +1,4 @@
-trigger_mode(TRIGGER_MODE_MANUAL)
+trigger_mode(TRIGGER_MODE_AUTO)
 allow_k8s_contexts('orbstack')
 
 load('ext://namespace', 'namespace_create')
@@ -73,6 +73,28 @@ k8s_resource(
     'kargo-viewer:clusterrolebinding',
     'kargo-selfsigned-cert-issuer:issuer'
   ]
+)
+
+k8s_yaml([
+  'hack/tilt/test/project.yaml',
+  'hack/tilt/test/project-config.yaml',
+  'hack/tilt/test/global-secret.yaml',
+  'hack/tilt/test/role-binding.yaml',
+  'hack/tilt/test/warehouse.yaml',
+  'hack/tilt/test/stages.yaml'
+  ])
+k8s_resource(
+  new_name='test',
+  labels=["test"],
+  objects=[
+    "kg-keycloak:project",
+    "kg-keycloak:projectconfig",
+    "kargo-controller-read-secrets:rolebinding",
+    "kargo-github-app:secret",
+    "warehouse:warehouse",
+    "dev:stage"
+  ],
+  trigger_mode = TRIGGER_MODE_AUTO
 )
 
 k8s_resource(

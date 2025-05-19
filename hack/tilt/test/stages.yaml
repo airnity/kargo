@@ -1,0 +1,64 @@
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  annotations:
+    kargo.akuity.io/color: green
+  name: dev
+  namespace: kg-keycloak
+spec:
+  promotionTemplate:
+    spec:
+      steps:
+        - as: gitClone
+          config:
+            checkout:
+              - branch: main
+                path: ./target
+            repoURL: https://github.com/airnity/test-alex
+          uses: git-clone
+        - uses: helm-update-chart
+          as: updateChart
+          config:
+            path: ./target/kube-prometheus-stack/stable
+            charts:
+            - repository: https://prometheus-community.github.io/helm-charts
+              name: kube-prometheus-stack
+              version: ${{ chartFrom("https://prometheus-community.github.io/helm-charts","kube-prometheus-stack").Version }}
+        - as: gitCommit
+          uses: git-commit
+          config:
+            path: ./target
+            message: |
+              Update prometheus chart to ${{ chartFrom("https://prometheus-community.github.io/helm-charts","kube-prometheus-stack").Version }}
+        # Push to a new branch and create a PR
+        - as: gitPush
+          uses: git-push
+          config:
+            path: ./target
+            targetBranch: kargo-promotion-prometheus-12
+            maxAttempts: 5
+        - as: openPr
+          uses: git-open-pr
+          config:
+            repoURL: https://github.com/airnity/test-alex
+            provider: github
+            createTargetBranch: true
+            sourceBranch: kargo-promotion-prometheus-12
+            targetBranch: main
+            title: |
+              Test PR for chart update
+        - as: waitForPr
+          uses: git-wait-for-pr
+          # retry:
+          #   errorThreshold: 120
+          #   timeout: 1m
+          config:
+            repoURL: https://github.com/airnity/test-alex
+            prNumber: ${{ outputs.openPr.prNumber }}
+  requestedFreight:
+  - origin:
+      kind: Warehouse
+      name: warehouse
+    sources:
+      direct: true

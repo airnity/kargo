@@ -1,0 +1,7 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: kg-keycloak
+  namespace: kg-keycloak
+spec:
+  promotionPolicies: []

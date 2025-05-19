@@ -1,0 +1,12 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: warehouse
+  namespace: kg-keycloak
+spec:
+  interval: 1m0s
+  subscriptions:
+    - chart:
+        discoveryLimit: 20
+        repoURL: https://prometheus-community.github.io/helm-charts
+        name: kube-prometheus-stack
