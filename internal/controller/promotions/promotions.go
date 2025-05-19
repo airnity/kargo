@@ -687,6 +687,9 @@ func calculateRequeueInterval(p *kargoapi.Promotion) time.Duration {
 
 	md := p.Status.StepExecutionMetadata[p.Status.CurrentStep]
 	targetTimeout := md.StartedAt.Time.Add(*timeout)
+	if targetTimeout.Before(time.Now()) {
+		return defaultRequeueInterval
+	}
 	if targetTimeout.Before(time.Now().Add(defaultRequeueInterval)) {
 		return time.Until(targetTimeout)
 	}
