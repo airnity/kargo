@@ -3,7 +3,6 @@ package builtin
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/xeipuuv/gojsonschema"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -199,13 +197,6 @@ func (a *airnityRenderer) makeHTTPRequest(
 }
 
 func (a *airnityRenderer) getHTTPClient(cfg builtin.AirnityRendererConfig) *http.Client {
-	httpTransport := cleanhttp.DefaultTransport()
-	if cfg.InsecureSkipTLSVerify {
-		httpTransport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true, // nolint: gosec
-		}
-	}
-
 	timeout := airnityRequestTimeout
 	if cfg.Timeout != "" {
 		if parsedTimeout, err := time.ParseDuration(cfg.Timeout); err == nil {
@@ -214,8 +205,7 @@ func (a *airnityRenderer) getHTTPClient(cfg builtin.AirnityRendererConfig) *http
 	}
 
 	return &http.Client{
-		Transport: httpTransport,
-		Timeout:   timeout,
+		Timeout: timeout,
 	}
 }
 
