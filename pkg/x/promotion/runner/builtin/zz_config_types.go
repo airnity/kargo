@@ -13,8 +13,6 @@ type AirnityRendererConfig struct {
 	Deployments []Deployment `json:"deployments"`
 	// The environment name used to construct the airnity server URL.
 	Environment string `json:"environment"`
-	// Whether to skip TLS verification when making the request. (Not recommended.)
-	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
 	// The Git repository URL.
 	RepoURL string `json:"repoURL"`
 	// The maximum time to wait for the request to complete. If not specified, the default is 30
