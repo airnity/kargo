@@ -6,6 +6,38 @@ type CommonDefs interface{}
 
 type ComposeOutput map[string]interface{}
 
+type AirnityRendererConfig struct {
+	// The commit SHA to render manifests for.
+	CommitSHA string `json:"commitSha"`
+	// List of deployment targets with cluster and app information.
+	Deployments []Deployment `json:"deployments"`
+	// The Git repository URL.
+	GitRepo string `json:"gitRepo"`
+	// Headers to include in the HTTP request.
+	Headers []AirnityRendererConfigHeader `json:"headers,omitempty"`
+	// Whether to skip TLS verification when making the request. (Not recommended.)
+	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
+	// The maximum time to wait for the request to complete. If not specified, the default is 30
+	// seconds.
+	Timeout string `json:"timeout,omitempty"`
+	// The URL of the airnity server to send the request to.
+	URL string `json:"url"`
+}
+
+type Deployment struct {
+	// The name of the application to deploy.
+	AppName string `json:"appName"`
+	// The ID of the cluster where the app should be deployed.
+	ClusterID string `json:"clusterId"`
+}
+
+type AirnityRendererConfigHeader struct {
+	// The name of the header.
+	Name string `json:"name"`
+	// The value of the header.
+	Value string `json:"value"`
+}
+
 type ArgoCDUpdateConfig struct {
 	Apps []ArgoCDAppUpdate `json:"apps"`
 }
@@ -303,7 +335,7 @@ type HTTPConfig struct {
 	// An expression to evaluate to determine if the request failed.
 	FailureExpression string `json:"failureExpression,omitempty"`
 	// Headers to include in the HTTP request.
-	Headers []HTTPHeader `json:"headers,omitempty"`
+	Headers []HTTPConfigHeader `json:"headers,omitempty"`
 	// Whether to skip TLS verification when making the request. (Not recommended.)
 	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
 	// The HTTP method to use for the request.
@@ -321,7 +353,7 @@ type HTTPConfig struct {
 	URL string `json:"url"`
 }
 
-type HTTPHeader struct {
+type HTTPConfigHeader struct {
 	// The name of the header.
 	Name string `json:"name"`
 	// The value of the header.
