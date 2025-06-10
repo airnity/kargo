@@ -11,6 +11,8 @@ type AirnityRendererConfig struct {
 	CommitSHA string `json:"commitSha"`
 	// List of deployment targets with cluster and app information.
 	Deployments []Deployment `json:"deployments"`
+	// The environment name used to construct the airnity server URL.
+	Environment string `json:"environment"`
 	// The Git repository URL.
 	GitRepo string `json:"gitRepo"`
 	// Whether to skip TLS verification when making the request. (Not recommended.)
@@ -18,8 +20,6 @@ type AirnityRendererConfig struct {
 	// The maximum time to wait for the request to complete. If not specified, the default is 30
 	// seconds.
 	Timeout string `json:"timeout,omitempty"`
-	// The URL of the airnity server to send the request to.
-	URL string `json:"url"`
 }
 
 type Deployment struct {

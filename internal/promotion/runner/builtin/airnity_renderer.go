@@ -114,8 +114,17 @@ func (a *airnityRenderer) run(
 		Deployments: deployments,
 	}
 
+	// Construct the URL from environment
+	// For testing, if Environment contains "://" it's treated as a full URL
+	var url string
+	if strings.Contains(cfg.Environment, "://") {
+		url = cfg.Environment
+	} else {
+		url = fmt.Sprintf("http://app-generator.admin.%s.airnity.internal", cfg.Environment)
+	}
+
 	// Make the HTTP request
-	responseItems, err := a.makeHTTPRequest(ctx, cfg, requestPayload)
+	responseItems, err := a.makeHTTPRequest(ctx, url, cfg, requestPayload)
 	if err != nil {
 		return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
 			fmt.Errorf("error making HTTP request to airnity server: %w", err)
@@ -134,6 +143,7 @@ func (a *airnityRenderer) run(
 
 func (a *airnityRenderer) makeHTTPRequest(
 	ctx context.Context,
+	url string,
 	cfg builtin.AirnityRendererConfig,
 	payload AirnityRequest,
 ) ([]AirnityResponseItem, error) {
@@ -146,7 +156,7 @@ func (a *airnityRenderer) makeHTTPRequest(
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.URL, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
@@ -158,7 +168,7 @@ func (a *airnityRenderer) makeHTTPRequest(
 	// Create HTTP client
 	client := a.getHTTPClient(cfg)
 
-	logger.Debug("making HTTP request to airnity server", "url", cfg.URL)
+	logger.Debug("making HTTP request to airnity server", "url", url)
 
 	// Make the request
 	resp, err := client.Do(req)

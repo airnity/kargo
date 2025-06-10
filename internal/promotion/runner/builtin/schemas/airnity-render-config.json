@@ -24,12 +24,12 @@
 
   "type": "object",
   "additionalProperties": false,
-  "required": ["url", "gitRepo", "commitSha", "deployments"],
+  "required": ["environment", "gitRepo", "commitSha", "deployments"],
   "properties": {
-    "url": {
+    "environment": {
       "type": "string",
       "minLength": 1,
-      "description": "The URL of the airnity server to send the request to."
+      "description": "The environment name used to construct the airnity server URL."
     },
     "gitRepo": {
       "type": "string",

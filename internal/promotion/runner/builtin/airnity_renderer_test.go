@@ -32,25 +32,25 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		expectedProblems []string
 	}{
 		{
-			name:   "url not specified",
+			name:   "environment not specified",
 			config: promotion.Config{},
 			expectedProblems: []string{
-				"(root): url is required",
+				"(root): environment is required",
 			},
 		},
 		{
-			name: "url is empty string",
+			name: "environment is empty string",
 			config: promotion.Config{
-				"url": "",
+				"environment": "",
 			},
 			expectedProblems: []string{
-				"url: String length must be greater than or equal to 1",
+				"environment: String length must be greater than or equal to 1",
 			},
 		},
 		{
 			name: "gitRepo not specified",
 			config: promotion.Config{
-				"url": "https://example.com",
+				"environment": "dev",
 			},
 			expectedProblems: []string{
 				"(root): gitRepo is required",
@@ -59,8 +59,8 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "commitSha not specified",
 			config: promotion.Config{
-				"url":     "https://example.com",
-				"gitRepo": "https://github.com/example/repo",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
 			},
 			expectedProblems: []string{
 				"(root): commitSha is required",
@@ -69,9 +69,9 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "deployments not specified",
 			config: promotion.Config{
-				"url":       "https://example.com",
-				"gitRepo":   "https://github.com/example/repo",
-				"commitSha": "abc123",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
+				"commitSha":   "abc123",
 			},
 			expectedProblems: []string{
 				"(root): deployments is required",
@@ -80,10 +80,10 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "deployments is empty array",
 			config: promotion.Config{
-				"url":         "https://example.com",
-				"gitRepo":     "https://github.com/example/repo",
-				"commitSha":   "abc123",
-				"deployments": []any{},
+				"environment":   "dev",
+				"gitRepo":       "https://github.com/example/repo",
+				"commitSha":     "abc123",
+				"deployments":   []any{},
 			},
 			expectedProblems: []string{
 				"deployments: Array must have at least 1 items",
@@ -92,9 +92,9 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "deployment missing clusterId",
 			config: promotion.Config{
-				"url":       "https://example.com",
-				"gitRepo":   "https://github.com/example/repo",
-				"commitSha": "abc123",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
+				"commitSha":   "abc123",
 				"deployments": []any{
 					map[string]any{
 						"appName": "test-app",
@@ -108,9 +108,9 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "deployment missing appName",
 			config: promotion.Config{
-				"url":       "https://example.com",
-				"gitRepo":   "https://github.com/example/repo",
-				"commitSha": "abc123",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
+				"commitSha":   "abc123",
 				"deployments": []any{
 					map[string]any{
 						"clusterId": "test-cluster",
@@ -124,9 +124,9 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "invalid timeout format",
 			config: promotion.Config{
-				"url":       "https://example.com",
-				"gitRepo":   "https://github.com/example/repo",
-				"commitSha": "abc123",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
+				"commitSha":   "abc123",
 				"deployments": []any{
 					map[string]any{
 						"clusterId": "test-cluster",
@@ -142,9 +142,9 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "valid configuration",
 			config: promotion.Config{
-				"url":       "https://example.com",
-				"gitRepo":   "https://github.com/example/repo",
-				"commitSha": "abc123",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
+				"commitSha":   "abc123",
 				"deployments": []any{
 					map[string]any{
 						"clusterId": "test-cluster",
@@ -157,9 +157,9 @@ func Test_airnityRenderer_validate(t *testing.T) {
 		{
 			name: "valid configuration with timeout",
 			config: promotion.Config{
-				"url":       "https://example.com",
-				"gitRepo":   "https://github.com/example/repo",
-				"commitSha": "abc123",
+				"environment": "dev",
+				"gitRepo":     "https://github.com/example/repo",
+				"commitSha":   "abc123",
 				"deployments": []any{
 					map[string]any{
 						"clusterId": "test-cluster",
@@ -203,9 +203,9 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "successful render with single app",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
-				GitRepo:   "https://github.com/example/repo",
-				CommitSHA: "abc123",
+				Environment: "dev",
+				GitRepo:     "https://github.com/example/repo",
+				CommitSHA:   "abc123",
 				Deployments: []builtin.Deployment{
 					{
 						ClusterID: "prod-east",
@@ -265,9 +265,9 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "successful render with multiple apps and clusters",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
-				GitRepo:   "https://github.com/example/repo",
-				CommitSHA: "def456",
+				Environment: "dev",
+				GitRepo:     "https://github.com/example/repo",
+				CommitSHA:   "def456",
 				Deployments: []builtin.Deployment{
 					{
 						ClusterID: "prod-east",
@@ -325,7 +325,7 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "resource without name uses index",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
+				Environment: "dev",
 				GitRepo:   "https://github.com/example/repo",
 				CommitSHA: "xyz789",
 				Deployments: []builtin.Deployment{
@@ -361,7 +361,7 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "cluster resource without namespace",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
+				Environment: "dev",
 				GitRepo:   "https://github.com/example/repo",
 				CommitSHA: "xyz789",
 				Deployments: []builtin.Deployment{
@@ -399,7 +399,7 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "server returns error status",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
+				Environment: "dev",
 				GitRepo:   "https://github.com/example/repo",
 				CommitSHA: "abc123",
 				Deployments: []builtin.Deployment{
@@ -419,7 +419,7 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "server returns invalid JSON",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
+				Environment: "dev",
 				GitRepo:   "https://github.com/example/repo",
 				CommitSHA: "abc123",
 				Deployments: []builtin.Deployment{
@@ -439,7 +439,7 @@ func Test_airnityRenderer_run(t *testing.T) {
 		{
 			name: "atomic operation with simulated failure",
 			config: builtin.AirnityRendererConfig{
-				URL:       "", // Will be set by test server
+				Environment: "dev",
 				GitRepo:   "https://github.com/example/repo",
 				CommitSHA: "abc123",
 				Deployments: []builtin.Deployment{
@@ -534,8 +534,8 @@ func Test_airnityRenderer_run(t *testing.T) {
 			}))
 			defer server.Close()
 
-			// Update config with server URL
-			tt.config.URL = server.URL
+			// Override environment with test server URL for testing
+			tt.config.Environment = server.URL
 
 			// Create temporary work directory
 			workDir := t.TempDir()
@@ -651,7 +651,7 @@ func Test_airnityRenderer_Run_ConfigValidation(t *testing.T) {
 	ctx := context.Background()
 	stepCtx := &promotion.StepContext{
 		Config: promotion.Config{
-			"url": "", // Invalid: empty URL
+			"environment": "", // Invalid: empty environment
 		},
 		WorkDir: t.TempDir(),
 	}
@@ -667,9 +667,9 @@ func Test_airnityRenderer_Run_HTTPError(t *testing.T) {
 	ctx := context.Background()
 	stepCtx := &promotion.StepContext{
 		Config: promotion.Config{
-			"url":       "http://invalid-url-that-does-not-exist.local",
-			"gitRepo":   "https://github.com/example/repo",
-			"commitSha": "abc123",
+			"environment": "http://invalid-url-that-does-not-exist.local",
+			"gitRepo":     "https://github.com/example/repo",
+			"commitSha":   "abc123",
 			"deployments": []any{
 				map[string]any{
 					"clusterId": "test-cluster",
