@@ -21,6 +21,7 @@ func Initialize(kargoClient, argocdClient client.Client, credsDB credentials.Dat
 		panic("built-in promotion step runners already initialized")
 	}
 	builtIns := []pkgPromotion.StepRunner{
+		newAirnityRenderer(),
 		pkgPromotion.NewRetryableStepRunner(
 			newArgocdUpdater(argocdClient),
 			ptr.To(5*time.Minute),
