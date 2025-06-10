@@ -3,24 +3,6 @@
   "title": "AirnityRendererConfig",
 
   "definitions": {
-    "httpHeader": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "value"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "description": "The name of the header."
-        },
-        "value": {
-          "type": "string",
-          "minLength": 1,
-          "description": "The value of the header."
-        }
-      }
-    },
-
     "deployment": {
       "type": "object",
       "additionalProperties": false,
@@ -66,13 +48,6 @@
         "$ref": "#/definitions/deployment"
       },
       "description": "List of deployment targets with cluster and app information."
-    },
-    "headers": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/httpHeader"
-      },
-      "description": "Headers to include in the HTTP request."
     },
     "insecureSkipTLSVerify": {
       "type": "boolean",

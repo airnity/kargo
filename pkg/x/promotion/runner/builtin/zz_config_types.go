@@ -13,8 +13,6 @@ type AirnityRendererConfig struct {
 	Deployments []Deployment `json:"deployments"`
 	// The Git repository URL.
 	GitRepo string `json:"gitRepo"`
-	// Headers to include in the HTTP request.
-	Headers []AirnityRendererConfigHeader `json:"headers,omitempty"`
 	// Whether to skip TLS verification when making the request. (Not recommended.)
 	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
 	// The maximum time to wait for the request to complete. If not specified, the default is 30
@@ -29,13 +27,6 @@ type Deployment struct {
 	AppName string `json:"appName"`
 	// The ID of the cluster where the app should be deployed.
 	ClusterID string `json:"clusterId"`
-}
-
-type AirnityRendererConfigHeader struct {
-	// The name of the header.
-	Name string `json:"name"`
-	// The value of the header.
-	Value string `json:"value"`
 }
 
 type ArgoCDUpdateConfig struct {
@@ -335,7 +326,7 @@ type HTTPConfig struct {
 	// An expression to evaluate to determine if the request failed.
 	FailureExpression string `json:"failureExpression,omitempty"`
 	// Headers to include in the HTTP request.
-	Headers []HTTPConfigHeader `json:"headers,omitempty"`
+	Headers []HTTPHeader `json:"headers,omitempty"`
 	// Whether to skip TLS verification when making the request. (Not recommended.)
 	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
 	// The HTTP method to use for the request.
@@ -353,7 +344,7 @@ type HTTPConfig struct {
 	URL string `json:"url"`
 }
 
-type HTTPConfigHeader struct {
+type HTTPHeader struct {
 	// The name of the header.
 	Name string `json:"name"`
 	// The value of the header.
