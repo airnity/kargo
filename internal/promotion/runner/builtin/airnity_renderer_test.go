@@ -155,7 +155,7 @@ func Test_airnityRenderer_validate(t *testing.T) {
 			expectedProblems: nil,
 		},
 		{
-			name: "valid configuration with headers and timeout",
+			name: "valid configuration with timeout",
 			config: promotion.Config{
 				"url":       "https://example.com",
 				"gitRepo":   "https://github.com/example/repo",
@@ -164,12 +164,6 @@ func Test_airnityRenderer_validate(t *testing.T) {
 					map[string]any{
 						"clusterId": "test-cluster",
 						"appName":   "test-app",
-					},
-				},
-				"headers": []any{
-					map[string]any{
-						"name":  "Authorization",
-						"value": "Bearer token",
 					},
 				},
 				"timeout":                "30s",

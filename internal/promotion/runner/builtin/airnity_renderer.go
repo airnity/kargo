@@ -154,9 +154,6 @@ func (a *airnityRenderer) makeHTTPRequest(
 	// Set headers
 	req.Header.Set("Content-Type", airnityContentTypeJSON)
 	req.Header.Set("Accept", airnityContentTypeJSON)
-	for _, header := range cfg.Headers {
-		req.Header.Set(header.Name, header.Value)
-	}
 
 	// Create HTTP client
 	client := a.getHTTPClient(cfg)
