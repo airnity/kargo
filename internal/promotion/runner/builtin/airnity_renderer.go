@@ -48,7 +48,7 @@ func newAirnityRenderer() promotion.StepRunner {
 
 // Name implements the promotion.StepRunner interface.
 func (a *airnityRenderer) Name() string {
-	return "airnity-renderer"
+	return "airnity-render"
 }
 
 // Run implements the promotion.StepRunner interface.
@@ -219,27 +219,120 @@ func (a *airnityRenderer) writeManifests(
 ) error {
 	logger := logging.LoggerFromContext(ctx)
 
-	for _, item := range responseItems {
-		clusterDir := filepath.Join(workDir, item.ClusterID)
-		appDir := filepath.Join(clusterDir, item.AppName)
+	// Create a temporary directory for atomic operations
+	tempDir, err := os.MkdirTemp(workDir, "airnity-temp-*")
+	if err != nil {
+		return fmt.Errorf("error creating temporary directory: %w", err)
+	}
 
-		// Create directories if they don't exist
-		if err := os.MkdirAll(appDir, 0755); err != nil {
-			return fmt.Errorf("error creating directory %s: %w", appDir, err)
+	// Ensure cleanup of temp directory on any failure
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			logger.Error(removeErr, "failed to clean up temporary directory", "dir", tempDir)
+		}
+	}()
+
+	logger.Debug("writing manifests to temporary directory", "tempDir", tempDir)
+
+	// Write all files to temporary directory first
+	for _, item := range responseItems {
+		tempClusterDir := filepath.Join(tempDir, item.ClusterID)
+		tempAppDir := filepath.Join(tempClusterDir, item.AppName)
+
+		// Create directories in temp location
+		if err := os.MkdirAll(tempAppDir, 0755); err != nil {
+			return fmt.Errorf("error creating temporary directory %s: %w", tempAppDir, err)
 		}
 
-		// Write each resource to a file
+		// Write each resource to a file in temp location
 		for i, resource := range item.Resources {
-			if err := a.writeResourceToFile(ctx, appDir, resource, i); err != nil {
-				return fmt.Errorf("error writing resource %d for app %s in cluster %s: %w",
+			if err := a.writeResourceToFile(ctx, tempAppDir, resource, i); err != nil {
+				return fmt.Errorf("error writing resource %d for app %s in cluster %s to temp location: %w",
 					i, item.AppName, item.ClusterID, err)
 			}
 		}
 
-		logger.Debug("wrote manifests for app", "cluster", item.ClusterID, "app", item.AppName, "resources", len(item.Resources))
+		logger.Debug("wrote manifests for app to temp location", "cluster", item.ClusterID, "app", item.AppName, "resources", len(item.Resources))
+	}
+
+	// Now atomically move files from temp directory to final location
+	for _, item := range responseItems {
+		tempClusterDir := filepath.Join(tempDir, item.ClusterID)
+		tempAppDir := filepath.Join(tempClusterDir, item.AppName)
+		
+		finalClusterDir := filepath.Join(workDir, item.ClusterID)
+		finalAppDir := filepath.Join(finalClusterDir, item.AppName)
+
+		// Ensure final directory structure exists
+		if err := os.MkdirAll(finalAppDir, 0755); err != nil {
+			return fmt.Errorf("error creating final directory %s: %w", finalAppDir, err)
+		}
+
+		// Move files from temp to final location
+		if err := a.moveManifestFiles(ctx, tempAppDir, finalAppDir); err != nil {
+			return fmt.Errorf("error moving manifests for app %s in cluster %s: %w",
+				item.AppName, item.ClusterID, err)
+		}
+
+		logger.Debug("moved manifests to final location", "cluster", item.ClusterID, "app", item.AppName)
+	}
+
+	logger.Debug("successfully wrote all manifests atomically")
+	return nil
+}
+
+func (a *airnityRenderer) moveManifestFiles(ctx context.Context, srcDir, destDir string) error {
+	logger := logging.LoggerFromContext(ctx)
+
+	// Read all files from source directory
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return fmt.Errorf("error reading source directory %s: %w", srcDir, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue // Skip directories, we only care about files
+		}
+
+		srcFile := filepath.Join(srcDir, entry.Name())
+		destFile := filepath.Join(destDir, entry.Name())
+
+		// Atomic move: rename from temp location to final location
+		if err := os.Rename(srcFile, destFile); err != nil {
+			// If rename fails (different filesystems), fall back to copy + delete
+			if err := a.copyFile(srcFile, destFile); err != nil {
+				return fmt.Errorf("error copying file %s to %s: %w", srcFile, destFile, err)
+			}
+			if err := os.Remove(srcFile); err != nil {
+				logger.Error(err, "failed to remove source file after copy", "file", srcFile)
+			}
+		}
+
+		logger.Trace("moved manifest file", "from", srcFile, "to", destFile)
 	}
 
 	return nil
+}
+
+func (a *airnityRenderer) copyFile(src, dest string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("error opening source file: %w", err)
+	}
+	defer srcFile.Close()
+
+	destFile, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("error creating destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	if _, err := destFile.ReadFrom(srcFile); err != nil {
+		return fmt.Errorf("error copying file content: %w", err)
+	}
+
+	return destFile.Sync()
 }
 
 func (a *airnityRenderer) writeResourceToFile(

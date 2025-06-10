@@ -22,7 +22,7 @@ import (
 
 func Test_airnityRenderer_Name(t *testing.T) {
 	r := newAirnityRenderer()
-	assert.Equal(t, "airnity-renderer", r.Name())
+	assert.Equal(t, "airnity-render", r.Name())
 }
 
 func Test_airnityRenderer_validate(t *testing.T) {
@@ -442,6 +442,65 @@ func Test_airnityRenderer_run(t *testing.T) {
 				assert.Contains(t, err.Error(), "error unmarshaling response")
 			},
 		},
+		{
+			name: "atomic operation with simulated failure",
+			config: builtin.AirnityRendererConfig{
+				URL:       "", // Will be set by test server
+				GitRepo:   "https://github.com/example/repo",
+				CommitSHA: "abc123",
+				Deployments: []builtin.Deployment{
+					{
+						ClusterID: "test-cluster",
+						AppName:   "test-app",
+					},
+				},
+			},
+			serverResponse: []AirnityResponseItem{
+				{
+					ClusterID: "test-cluster",
+					AppName:   "test-app",
+					Resources: []map[string]interface{}{
+						{
+							"apiVersion": "v1",
+							"kind":       "ConfigMap",
+							"metadata": map[string]interface{}{
+								"name":      "config1",
+								"namespace": "default",
+							},
+						},
+						{
+							"apiVersion": "v1",
+							"kind":       "Secret",
+							"metadata": map[string]interface{}{
+								"name":      "secret1",
+								"namespace": "default",
+							},
+						},
+					},
+				},
+			},
+			serverStatus: http.StatusOK,
+			assertions: func(t *testing.T, workDir string, result promotion.StepResult, err error) {
+				assert.NoError(t, err)
+				assert.Equal(t, kargoapi.PromotionStepStatusSucceeded, result.Status)
+
+				// Verify both files were created
+				configMapFile := filepath.Join(workDir, "test-cluster", "test-app", "configmap-config1-default.yaml")
+				assert.FileExists(t, configMapFile)
+
+				secretFile := filepath.Join(workDir, "test-cluster", "test-app", "secret-secret1-default.yaml")
+				assert.FileExists(t, secretFile)
+
+				// Verify no temporary directories remain
+				entries, err := os.ReadDir(workDir)
+				assert.NoError(t, err)
+				for _, entry := range entries {
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), "airnity-temp-") {
+						t.Errorf("Found temporary directory that should have been cleaned up: %s", entry.Name())
+					}
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -631,4 +690,64 @@ func Test_airnityRenderer_Run_HTTPError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
 	assert.Contains(t, err.Error(), "error making HTTP request to airnity server")
+}
+
+func Test_airnityRenderer_TemporaryDirectoryCleanup(t *testing.T) {
+	r := newAirnityRenderer()
+	runner, ok := r.(*airnityRenderer)
+	require.True(t, ok)
+
+	// Create a temporary work directory
+	workDir := t.TempDir()
+
+	// Create a directory structure, then make it read-only to cause move operation to fail
+	readOnlyDir := filepath.Join(workDir, "readonly-cluster", "readonly-app")
+	err := os.MkdirAll(readOnlyDir, 0755) // Create with normal permissions first
+	require.NoError(t, err)
+
+	// Now make it read-only to cause the move to fail
+	err = os.Chmod(readOnlyDir, 0555) // Read and execute only, no write permission
+	require.NoError(t, err)
+
+	// Restore permissions at end of test
+	defer func() {
+		_ = os.Chmod(readOnlyDir, 0755)
+		_ = os.Chmod(filepath.Dir(readOnlyDir), 0755)
+	}()
+
+	// Create some valid response data
+	responseItems := []AirnityResponseItem{
+		{
+			ClusterID: "readonly-cluster",
+			AppName:   "readonly-app",
+			Resources: []map[string]interface{}{
+				{
+					"apiVersion": "v1",
+					"kind":       "ConfigMap",
+					"metadata": map[string]interface{}{
+						"name":      "test-config",
+						"namespace": "default",
+					},
+				},
+			},
+		},
+	}
+
+	// This should fail during the move operation due to permission issues
+	err = runner.writeManifests(context.Background(), workDir, responseItems)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error moving manifests")
+
+	// Verify that no temporary directories remain after the failure
+	entries, err := os.ReadDir(workDir)
+	assert.NoError(t, err)
+	
+	tempDirFound := false
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "airnity-temp-") {
+			tempDirFound = true
+			break
+		}
+	}
+	assert.False(t, tempDirFound, "Temporary directory should have been cleaned up after failure")
 }
