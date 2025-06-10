@@ -8,15 +8,15 @@ type ComposeOutput map[string]interface{}
 
 type AirnityRendererConfig struct {
 	// The commit SHA to render manifests for.
-	CommitSHA string `json:"commitSha"`
+	Commit string `json:"commit"`
 	// List of deployment targets with cluster and app information.
 	Deployments []Deployment `json:"deployments"`
 	// The environment name used to construct the airnity server URL.
 	Environment string `json:"environment"`
-	// The Git repository URL.
-	GitRepo string `json:"gitRepo"`
 	// Whether to skip TLS verification when making the request. (Not recommended.)
 	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
+	// The Git repository URL.
+	RepoURL string `json:"repoURL"`
 	// The maximum time to wait for the request to complete. If not specified, the default is 30
 	// seconds.
 	Timeout string `json:"timeout,omitempty"`

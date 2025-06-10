@@ -27,12 +27,12 @@
    "minLength": 1,
    "description": "The environment name used to construct the airnity server URL."
   },
-  "gitRepo": {
+  "repoURL": {
    "type": "string",
    "minLength": 1,
    "description": "The Git repository URL."
   },
-  "commitSha": {
+  "commit": {
    "type": "string",
    "minLength": 1,
    "description": "The commit SHA to render manifests for."
