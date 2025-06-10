@@ -2,22 +2,6 @@
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "title": "AirnityRendererConfig",
  "definitions": {
-  "httpHeader": {
-   "type": "object",
-   "additionalProperties": false,
-   "properties": {
-    "name": {
-     "type": "string",
-     "minLength": 1,
-     "description": "The name of the header."
-    },
-    "value": {
-     "type": "string",
-     "minLength": 1,
-     "description": "The value of the header."
-    }
-   }
-  },
   "deployment": {
    "type": "object",
    "additionalProperties": false,
@@ -72,26 +56,6 @@
     }
    },
    "description": "List of deployment targets with cluster and app information."
-  },
-  "headers": {
-   "type": "array",
-   "items": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-     "name": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The name of the header."
-     },
-     "value": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The value of the header."
-     }
-    }
-   },
-   "description": "Headers to include in the HTTP request."
   },
   "insecureSkipTLSVerify": {
    "type": "boolean",
