@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	airnityContentTypeJSON   = "application/json"
-	airnityRequestTimeout    = 30 * time.Second
-	airnityMaxResponseBytes  = 10 << 20 // 10MB
+	airnityContentTypeJSON  = "application/json"
+	airnityRequestTimeout   = 30 * time.Second
+	airnityMaxResponseBytes = 10 << 20 // 10MB
 )
 
 // airnityRenderer is an implementation of the promotion.StepRunner interface that
@@ -85,8 +85,8 @@ type AirnityRequest struct {
 
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	AppName   string                    `json:"appName"`
-	ClusterID string                    `json:"clusterId"`
+	AppName   string                   `json:"appName"`
+	ClusterID string                   `json:"clusterId"`
 	Resources []map[string]interface{} `json:"resources"`
 }
 
@@ -118,7 +118,7 @@ func (a *airnityRenderer) run(
 	if strings.Contains(cfg.Environment, "://") {
 		url = cfg.Environment
 	} else {
-		url = fmt.Sprintf("http://app-generator.admin.%s.airnity.internal", cfg.Environment)
+		url = fmt.Sprintf("http://app-generator.admin.%s.airnity.private", cfg.Environment)
 	}
 
 	// Make the HTTP request
@@ -256,7 +256,7 @@ func (a *airnityRenderer) writeManifests(
 	for _, item := range responseItems {
 		tempClusterDir := filepath.Join(tempDir, item.ClusterID)
 		tempAppDir := filepath.Join(tempClusterDir, item.AppName)
-		
+
 		finalClusterDir := filepath.Join(workDir, item.ClusterID)
 		finalAppDir := filepath.Join(finalClusterDir, item.AppName)
 
@@ -380,7 +380,7 @@ func (a *airnityRenderer) generateFilename(gvk schema.GroupVersionKind, name, na
 
 	// Build filename components
 	components := []string{gvkStr}
-	
+
 	if name != "" {
 		components = append(components, name)
 	} else {
