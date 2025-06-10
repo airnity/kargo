@@ -445,7 +445,7 @@ func Test_httpRequester_buildRequest(t *testing.T) {
 	req, err := (&httpRequester{}).buildRequest(builtin.HTTPConfig{
 		Method: "GET",
 		URL:    "http://example.com",
-		Headers: []builtin.HTTPConfigHeader{{
+		Headers: []builtin.HTTPHeader{{
 			Name:  "Content-Type",
 			Value: "application/json",
 		}},
