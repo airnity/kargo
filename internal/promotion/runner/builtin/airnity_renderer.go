@@ -80,8 +80,8 @@ type AirnityDeployment struct {
 
 // AirnityRequest represents the request payload sent to the airnity server
 type AirnityRequest struct {
-	GitRepo     string              `json:"gitRepo"`
-	CommitSha   string              `json:"commitSha"`
+	RepoURL     string              `json:"repoURL"`
+	Commit      string              `json:"commit"`
 	Deployments []AirnityDeployment `json:"deployments"`
 }
 
@@ -109,8 +109,8 @@ func (a *airnityRenderer) run(
 	}
 
 	requestPayload := AirnityRequest{
-		GitRepo:     cfg.GitRepo,
-		CommitSha:   cfg.CommitSHA,
+		RepoURL:     cfg.RepoURL,
+		Commit:      cfg.Commit,
 		Deployments: deployments,
 	}
 
