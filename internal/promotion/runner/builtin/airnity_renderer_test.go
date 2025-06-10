@@ -1,0 +1,456 @@
+package builtin
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	kargoapi "github.com/akuity/kargo/api/v1alpha1"
+	"github.com/akuity/kargo/pkg/promotion"
+	"github.com/akuity/kargo/pkg/x/promotion/runner/builtin"
+)
+
+func Test_airnityRenderer_Name_New(t *testing.T) {
+	r := newAirnityRenderer()
+	assert.Equal(t, "airnity-render", r.Name())
+}
+
+func Test_airnityRenderer_validate_New(t *testing.T) {
+	testCases := []struct {
+		name             string
+		config           promotion.Config
+		expectedProblems []string
+	}{
+		{
+			name:   "argoRepoName not specified",
+			config: promotion.Config{},
+			expectedProblems: []string{
+				"(root): argoRepoName is required",
+			},
+		},
+		{
+			name: "gitRef not specified",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+			},
+			expectedProblems: []string{
+				"(root): gitRef is required",
+			},
+		},
+		{
+			name: "apps not specified",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+			},
+			expectedProblems: []string{
+				"(root): apps is required",
+			},
+		},
+		{
+			name: "apps is empty array",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{},
+			},
+			expectedProblems: []string{
+				"apps: Array must have at least 1 items",
+			},
+		},
+		{
+			name: "app missing clusterIds",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
+					map[string]any{
+						"applicationManifestNames": []string{"test-app"},
+					},
+				},
+			},
+			expectedProblems: []string{
+				"apps.0: clusterIds is required",
+			},
+		},
+		{
+			name: "app missing applicationManifestNames",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
+					map[string]any{
+						"clusterIds": []string{"test-cluster"},
+					},
+				},
+			},
+			expectedProblems: []string{
+				"apps.0: applicationManifestNames is required",
+			},
+		},
+		{
+			name: "invalid timeout format",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
+					map[string]any{
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
+					},
+				},
+				"timeout": "invalid",
+			},
+			expectedProblems: []string{
+				"timeout: Does not match pattern",
+			},
+		},
+		{
+			name: "valid configuration",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
+					map[string]any{
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
+					},
+				},
+			},
+			expectedProblems: nil,
+		},
+		{
+			name: "valid configuration with timeout",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
+					map[string]any{
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
+					},
+				},
+				"timeout": "30s",
+			},
+			expectedProblems: nil,
+		},
+		{
+			name: "valid configuration with outPath",
+			config: promotion.Config{
+				"argoRepoName": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
+					map[string]any{
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
+					},
+				},
+				"outPath": "manifests",
+			},
+			expectedProblems: nil,
+		},
+	}
+
+	r := newAirnityRenderer()
+	runner, ok := r.(*airnityRenderer)
+	require.True(t, ok)
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := runner.validate(testCase.config)
+			if len(testCase.expectedProblems) == 0 {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+				for _, expectedProblem := range testCase.expectedProblems {
+					assert.Contains(t, err.Error(), expectedProblem)
+				}
+			}
+		})
+	}
+}
+
+func Test_airnityRenderer_run_New(t *testing.T) {
+	tests := []struct {
+		name           string
+		config         builtin.AirnityRendererConfig
+		serverResponse []AirnityResponseItem
+		serverStatus   int
+		assertions     func(*testing.T, string, promotion.StepResult, error)
+	}{
+		{
+			name: "successful render with single app",
+			config: builtin.AirnityRendererConfig{
+				ArgoRepoName: "argo-test",
+				GitRef: builtin.GitRef{
+					Ref:  "abc123",
+					Type: "commit",
+				},
+				Apps: []builtin.App{
+					{
+						ClusterIDS:               []string{"prod-east"},
+						ApplicationManifestNames: []string{"frontend"},
+					},
+				},
+			},
+			serverResponse: []AirnityResponseItem{
+				{
+					ClusterID: "prod-east",
+					AppName:   "frontend",
+					Resources: []KubernetesResource{
+						{
+							Group:     "apps",
+							Version:   "v1",
+							Kind:      "Deployment",
+							Name:      "frontend",
+							Namespace: func() *string { s := "default"; return &s }(),
+							Manifest: map[string]interface{}{
+								"apiVersion": "apps/v1",
+								"kind":       "Deployment",
+								"metadata": map[string]interface{}{
+									"name":      "frontend",
+									"namespace": "default",
+								},
+								"spec": map[string]interface{}{
+									"replicas": 3,
+								},
+							},
+						},
+						{
+							Group:     "",
+							Version:   "v1",
+							Kind:      "Service",
+							Name:      "frontend-svc",
+							Namespace: func() *string { s := "default"; return &s }(),
+							Manifest: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "Service",
+								"metadata": map[string]interface{}{
+									"name":      "frontend-svc",
+									"namespace": "default",
+								},
+								"spec": map[string]interface{}{
+									"type": "ClusterIP",
+								},
+							},
+						},
+					},
+				},
+			},
+			serverStatus: http.StatusOK,
+			assertions: func(t *testing.T, workDir string, result promotion.StepResult, err error) {
+				assert.NoError(t, err)
+				assert.Equal(t, kargoapi.PromotionStepStatusSucceeded, result.Status)
+
+				// Check that files were created
+				deploymentFile := filepath.Join(workDir, "prod-east", "frontend", "apps", "deployment", "default", "frontend.yaml")
+				assert.FileExists(t, deploymentFile)
+
+				serviceFile := filepath.Join(workDir, "prod-east", "frontend", "core", "service", "default", "frontend-svc.yaml")
+				assert.FileExists(t, serviceFile)
+
+				// Verify file content
+				content, err := os.ReadFile(deploymentFile)
+				assert.NoError(t, err)
+				assert.Contains(t, string(content), "name: frontend")
+				assert.Contains(t, string(content), "replicas: 3")
+			},
+		},
+		{
+			name: "server returns error status",
+			config: builtin.AirnityRendererConfig{
+				ArgoRepoName: "argo-test",
+				GitRef: builtin.GitRef{
+					Ref:  "abc123",
+					Type: "commit",
+				},
+				Apps: []builtin.App{
+					{
+						ClusterIDS:               []string{"prod-east"},
+						ApplicationManifestNames: []string{"frontend"},
+					},
+				},
+			},
+			serverStatus: http.StatusInternalServerError,
+			assertions: func(t *testing.T, workDir string, result promotion.StepResult, err error) {
+				assert.Error(t, err)
+				assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
+				assert.Contains(t, err.Error(), "airnity server returned status 500")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test server
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Verify request method and headers
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+				assert.Equal(t, "application/json", r.Header.Get("Accept"))
+
+				// Verify request body
+				bodyBytes, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+
+				var requestPayload AirnityRequest
+				err = json.Unmarshal(bodyBytes, &requestPayload)
+				require.NoError(t, err)
+
+				assert.Equal(t, tt.config.GitRef.Ref, requestPayload.GitRef.Ref)
+				assert.Len(t, requestPayload.Apps, len(tt.config.Apps))
+
+				// Set response status
+				w.WriteHeader(tt.serverStatus)
+
+				// Send response
+				if tt.serverStatus == http.StatusOK {
+					if tt.name == "server returns invalid JSON" {
+						_, _ = w.Write([]byte("invalid json"))
+					} else {
+						responseBytes, err := json.Marshal(tt.serverResponse)
+						require.NoError(t, err)
+						_, _ = w.Write(responseBytes)
+					}
+				}
+			}))
+			defer server.Close()
+
+			// Create temporary work directory
+			workDir := t.TempDir()
+
+			// Create context and step context
+			ctx := context.Background()
+			stepCtx := &promotion.StepContext{
+				WorkDir: workDir,
+			}
+
+			// Create runner and execute
+			r := newAirnityRenderer()
+			runner, ok := r.(*airnityRenderer)
+			require.True(t, ok)
+
+			result, err := runner.run(ctx, stepCtx, tt.config)
+
+			// Run assertions
+			tt.assertions(t, workDir, result, err)
+		})
+	}
+}
+
+func Test_airnityRenderer_generateFilePath_New(t *testing.T) {
+	tests := []struct {
+		name      string
+		group     string
+		kind      string
+		resName   string
+		namespace string
+		index     int
+		expected  string
+	}{
+		{
+			name:      "deployment with namespace",
+			group:     "apps",
+			kind:      "Deployment",
+			resName:   "frontend",
+			namespace: "default",
+			index:     0,
+			expected:  "apps/deployment/default/frontend.yaml",
+		},
+		{
+			name:      "service with namespace",
+			group:     "",
+			kind:      "Service",
+			resName:   "frontend-svc",
+			namespace: "default",
+			index:     0,
+			expected:  "core/service/default/frontend-svc.yaml",
+		},
+		{
+			name:      "namespace without namespace",
+			group:     "",
+			kind:      "Namespace",
+			resName:   "test-namespace",
+			namespace: "",
+			index:     0,
+			expected:  "core/namespace/cluster-scoped/test-namespace.yaml",
+		},
+		{
+			name:      "resource without name",
+			group:     "",
+			kind:      "ConfigMap",
+			resName:   "",
+			namespace: "default",
+			index:     2,
+			expected:  "core/configmap/default/resource-2.yaml",
+		},
+		{
+			name:      "custom resource",
+			group:     "argoproj.io",
+			kind:      "Application",
+			resName:   "my-app",
+			namespace: "argocd",
+			index:     0,
+			expected:  "argoproj.io/application/argocd/my-app.yaml",
+		},
+	}
+
+	r := newAirnityRenderer()
+	runner, ok := r.(*airnityRenderer)
+	require.True(t, ok)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := runner.generateFilePath(tt.group, tt.kind, tt.resName, tt.namespace)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func Test_airnityRenderer_Run_ConfigValidation_New(t *testing.T) {
+	r := newAirnityRenderer()
+
+	ctx := context.Background()
+	stepCtx := &promotion.StepContext{
+		Config: promotion.Config{
+			"argoRepoName": "", // Invalid: empty argoRepoName
+		},
+		WorkDir: t.TempDir(),
+	}
+
+	result, err := r.Run(ctx, stepCtx)
+	assert.Error(t, err)
+	assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
+}

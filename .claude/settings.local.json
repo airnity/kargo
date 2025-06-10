@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./hack/codegen/promotion-step-configs.sh:*)",
+      "Bash(grep:*)",
+      "Bash(go build:*)",
+      "Bash(find:*)",
+      "Bash(go test:*)",
+      "Bash(make lint)",
+      "Bash(make:*)",
+      "Bash(sed:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": []
+  }
+}

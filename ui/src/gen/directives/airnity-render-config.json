@@ -1,0 +1,118 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "AirnityRendererConfig",
+ "definitions": {
+  "app": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "clusterIds": {
+     "type": "array",
+     "minLength": 1,
+     "description": "The IDs of the clusters where the app should be deployed.",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of a cluster."
+     }
+    },
+    "applicationManifestNames": {
+     "type": "array",
+     "minLength": 1,
+     "description": "The names of the application manifests to be rendered.",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of an application manifest."
+     }
+    }
+   }
+  },
+  "gitRef": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "type": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The type of Git reference, e.g., 'branch', 'tag', or 'commit'."
+    },
+    "ref": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The Git reference value, such as a branch name, tag name, or commit SHA."
+    }
+   }
+  }
+ },
+ "type": "object",
+ "additionalProperties": false,
+ "properties": {
+  "argoRepoName": {
+   "type": "string",
+   "minLength": 1,
+   "description": "The ArgoCD Git repository name."
+  },
+  "gitRef": {
+   "type": "object",
+   "description": "The Git reference to use for the generation, such as a branch, tag, or commit.",
+   "additionalProperties": false,
+   "properties": {
+    "type": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The type of Git reference, e.g., 'branch', 'tag', or 'commit'."
+    },
+    "ref": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The Git reference value, such as a branch name, tag name, or commit SHA."
+    }
+   }
+  },
+  "apps": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "clusterIds": {
+      "type": "array",
+      "minLength": 1,
+      "description": "The IDs of the clusters where the app should be deployed.",
+      "items": {
+       "type": "string",
+       "minLength": 1,
+       "description": "The ID of a cluster."
+      }
+     },
+     "applicationManifestNames": {
+      "type": "array",
+      "minLength": 1,
+      "description": "The names of the application manifests to be rendered.",
+      "items": {
+       "type": "string",
+       "minLength": 1,
+       "description": "The name of an application manifest."
+      }
+     }
+    }
+   },
+   "description": "List of app targets with cluster and app information."
+  },
+  "timeout": {
+   "type": "string",
+   "pattern": "(?:\\d+(ns|us|µs|ms|s|m|h))+",
+   "description": "The maximum time to wait for the request to complete. If not specified, the default is 30 seconds."
+  },
+  "outPath": {
+   "type": "string",
+   "description": "The path within the working directory where rendered manifests should be written. If not specified, manifests are written to the root of the working directory."
+  },
+  "skipTlsVerify": {
+   "type": "boolean",
+   "default": false,
+   "description": "If true, TLS verification is skipped when accessing the Git repository. This is not recommended for production use."
+  }
+ }
+}

@@ -6,6 +6,39 @@ type CommonDefs interface{}
 
 type ComposeOutput map[string]interface{}
 
+type AirnityRendererConfig struct {
+	// List of app targets with cluster and app information.
+	Apps []App `json:"apps"`
+	// The ArgoCD Git repository name.
+	ArgoRepoName string `json:"argoRepoName"`
+	// The Git reference to use for the generation, such as a branch, tag, or commit.
+	GitRef GitRef `json:"gitRef"`
+	// The path within the working directory where rendered manifests should be written. If not
+	// specified, manifests are written to the root of the working directory.
+	OutPath string `json:"outPath,omitempty"`
+	// If true, TLS verification is skipped when accessing the Git repository. This is not
+	// recommended for production use.
+	SkipTLSVerify bool `json:"skipTlsVerify,omitempty"`
+	// The maximum time to wait for the request to complete. If not specified, the default is 30
+	// seconds.
+	Timeout string `json:"timeout,omitempty"`
+}
+
+type App struct {
+	// The names of the application manifests to be rendered.
+	ApplicationManifestNames []string `json:"applicationManifestNames"`
+	// The IDs of the clusters where the app should be deployed.
+	ClusterIDS []string `json:"clusterIds"`
+}
+
+// The Git reference to use for the generation, such as a branch, tag, or commit.
+type GitRef struct {
+	// The Git reference value, such as a branch name, tag name, or commit SHA.
+	Ref string `json:"ref"`
+	// The type of Git reference, e.g., 'branch', 'tag', or 'commit'.
+	Type string `json:"type"`
+}
+
 type ArgoCDUpdateConfig struct {
 	Apps []ArgoCDAppUpdate `json:"apps"`
 }
@@ -308,7 +341,7 @@ type HTTPConfig struct {
 	// An expression to evaluate to determine if the request failed.
 	FailureExpression string `json:"failureExpression,omitempty"`
 	// Headers to include in the HTTP request.
-	Headers []HTTPConfigHeader `json:"headers,omitempty"`
+	Headers []HTTPHeader `json:"headers,omitempty"`
 	// Whether to skip TLS verification when making the request. (Not recommended.)
 	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
 	// The HTTP method to use for the request.
@@ -326,7 +359,7 @@ type HTTPConfig struct {
 	URL string `json:"url"`
 }
 
-type HTTPConfigHeader struct {
+type HTTPHeader struct {
 	// The name of the header.
 	Name string `json:"name"`
 	// The value of the header.

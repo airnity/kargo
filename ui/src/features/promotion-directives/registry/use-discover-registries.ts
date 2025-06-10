@@ -1,6 +1,7 @@
 import { JSONSchema7 } from 'json-schema';
 
 // IMPORTANT(Marvin9): this must be replaced with proper discovery mechanism
+import airnityRenderConfig from '@ui/gen/directives/airnity-render-config.json';
 import argocdUpdateConfig from '@ui/gen/directives/argocd-update-config.json';
 import copyConfig from '@ui/gen/directives/copy-config.json';
 import deleteConfig from '@ui/gen/directives/delete-config.json';
@@ -28,6 +29,10 @@ export const useDiscoverPromotionDirectivesRegistries = (): PromotionDirectivesR
   // when we actually starts accepting external promotion directives registry, this must be the only place to care about
   const registry: PromotionDirectivesRegistry = {
     runners: [
+      {
+        identifier: 'airnity-render',
+        config: airnityRenderConfig as JSONSchema7
+      },
       {
         identifier: 'argocd-update',
         config: argocdUpdateConfig as JSONSchema7

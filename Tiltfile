@@ -24,6 +24,16 @@ local_resource(
   labels = ['native-processes'],
   trigger_mode = TRIGGER_MODE_AUTO
 )
+
+# Mock airnity server for testing
+docker_build(
+  'mock-airnity-server:dev',
+  'hack/mock-airnity-server',
+  only = [
+    'main.go',
+    'Dockerfile'
+  ]
+)
 docker_build(
   'ghcr.io/akuity/kargo',
   '.',
@@ -67,6 +77,9 @@ k8s_yaml(
 # Normally the API server serves up the front end, but we want live updates
 # of the UI, so we're breaking it out into its own separate deployment here.
 k8s_yaml('hack/tilt/ui.yaml')
+
+# Mock airnity server for testing promotion runners
+k8s_yaml('hack/tilt/mock-airnity-server.yaml')
 
 k8s_resource(
   new_name = 'common',
@@ -234,4 +247,41 @@ k8s_resource(
     'warehouses.kargo.akuity.io:customresourcedefinition'
   ],
   labels = ['kargo']
+)
+
+k8s_resource(
+  workload = 'mock-airnity-server',
+  new_name = 'mock-airnity-server',
+  port_forwards = [
+    '30084:8080'
+  ],
+  labels = ['mock-services']
+)
+
+# Example Kargo resources for testing
+k8s_yaml('hack/examples/rolebinding.yaml')
+k8s_yaml('hack/examples/airnity-test-stage.yaml')
+
+# Only include secret.yaml if it exists (since it's git-ignored)
+if os.path.exists('hack/examples/secret.yaml'):
+  k8s_yaml('hack/examples/secret.yaml')
+
+# Build objects list conditionally based on whether secret exists
+examples_objects = [
+  'kargo-controller-read-secrets:rolebinding:kargo',
+  'airnity-test:project',
+  'airnity-test-warehouse:warehouse:airnity-test',
+  'dev:stage:airnity-test'
+]
+
+# Add secret to objects list if it exists
+if os.path.exists('hack/examples/secret.yaml'):
+  examples_objects.append('kargo-github-app:secret:kargo')
+
+k8s_resource(
+  new_name = 'examples',
+  labels = ['examples'],
+  objects = examples_objects,
+  resource_deps=['crds', 'mock-airnity-server'],
+  trigger_mode = TRIGGER_MODE_AUTO
 )
