@@ -132,7 +132,6 @@ func (a *airnityRenderer) run(
 
 	// Determine output directory
 	outDir := stepCtx.WorkDir
-	fmt.Println("DEBUG Using work directory:", outDir)
 	if cfg.OutPath != "" {
 		var err error
 		outDir, err = securejoin.SecureJoin(stepCtx.WorkDir, cfg.OutPath)
@@ -140,11 +139,6 @@ func (a *airnityRenderer) run(
 			return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
 				fmt.Errorf("could not secure join outPath %q: %w", cfg.OutPath, err)
 		}
-	}
-
-	// Debug
-	for _, item := range responseItems {
-		fmt.Println("DEBUG Item:", item.AppName)
 	}
 
 	// Write manifests to files
@@ -243,7 +237,6 @@ func (a *airnityRenderer) writeManifests(
 	if err != nil {
 		return fmt.Errorf("error creating temporary directory: %w", err)
 	}
-	fmt.Println("DEBUG Using temporary directory:", tempDir)
 
 	// Ensure cleanup of temp directory on any failure
 	defer func() {
@@ -272,7 +265,7 @@ func (a *airnityRenderer) writeManifests(
 			}
 		}
 
-		logger.Debug("wrote manifests for app to temp location", "cluster", item.ClusterID, "app", item.AppName, "resources", len(item.Resources))
+		logger.Trace("wrote manifests for app to temp location", "cluster", item.ClusterID, "app", item.AppName, "resources", len(item.Resources))
 	}
 
 	// Now atomically move files from temp directory to final location
