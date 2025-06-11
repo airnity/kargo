@@ -103,6 +103,7 @@ spec:
             appName: frontend
           - clusterId: dev-west
             appName: backend
+          outPath: "rendered-manifests"
           timeout: 60s
 EOF
 

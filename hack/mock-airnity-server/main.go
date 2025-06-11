@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 // AirnityDeployment represents a deployment target with cluster and app information
@@ -23,9 +24,9 @@ type AirnityRequest struct {
 
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	AppName   string                   `json:"appName"`
-	ClusterID string                   `json:"clusterId"`
-	Resources []map[string]interface{} `json:"resources"`
+	AppName   string           `json:"appName"`
+	ClusterID string           `json:"clusterId"`
+	Resources []map[string]any `json:"resources"`
 }
 
 func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
@@ -41,54 +42,54 @@ func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Received request for repo: %s, commit: %s, deployments: %d", 
+	log.Printf("Received request for repo: %s, commit: %s, deployments: %d",
 		req.RepoURL, req.Commit, len(req.Deployments))
 
 	// Generate mock response based on the request
 	var response []AirnityResponseItem
-	
+
 	for _, deployment := range req.Deployments {
 		log.Printf("Generating manifests for cluster: %s, app: %s", deployment.ClusterID, deployment.AppName)
-		
+
 		// Create mock Kubernetes resources
-		resources := []map[string]interface{}{
+		resources := []map[string]any{
 			// Mock Deployment
 			{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      deployment.AppName,
 					"namespace": "default",
-					"labels": map[string]interface{}{
+					"labels": map[string]any{
 						"app":     deployment.AppName,
 						"cluster": deployment.ClusterID,
 						"commit":  req.Commit,
 					},
 				},
-				"spec": map[string]interface{}{
-					"replicas": 3,
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
+				"spec": map[string]any{
+					"replicas": 5,
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
 							"app": deployment.AppName,
 						},
 					},
-					"template": map[string]interface{}{
-						"metadata": map[string]interface{}{
-							"labels": map[string]interface{}{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{
 								"app": deployment.AppName,
 							},
 						},
-						"spec": map[string]interface{}{
-							"containers": []map[string]interface{}{
+						"spec": map[string]any{
+							"containers": []map[string]any{
 								{
 									"name":  deployment.AppName,
 									"image": fmt.Sprintf("myregistry/%s:%s", deployment.AppName, req.Commit[:8]),
-									"ports": []map[string]interface{}{
+									"ports": []map[string]any{
 										{
 											"containerPort": 8080,
 										},
 									},
-									"env": []map[string]interface{}{
+									"env": []map[string]any{
 										{
 											"name":  "CLUSTER_ID",
 											"value": deployment.ClusterID,
@@ -108,19 +109,19 @@ func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
 			{
 				"apiVersion": "v1",
 				"kind":       "Service",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      fmt.Sprintf("%s-service", deployment.AppName),
 					"namespace": "default",
-					"labels": map[string]interface{}{
+					"labels": map[string]any{
 						"app":     deployment.AppName,
 						"cluster": deployment.ClusterID,
 					},
 				},
-				"spec": map[string]interface{}{
-					"selector": map[string]interface{}{
+				"spec": map[string]any{
+					"selector": map[string]any{
 						"app": deployment.AppName,
 					},
-					"ports": []map[string]interface{}{
+					"ports": []map[string]any{
 						{
 							"name":       "http",
 							"port":       80,
@@ -134,11 +135,11 @@ func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
 			{
 				"apiVersion": "v1",
 				"kind":       "ConfigMap",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      fmt.Sprintf("%s-config", deployment.AppName),
 					"namespace": "default",
 				},
-				"data": map[string]interface{}{
+				"data": map[string]any{
 					"config.yaml": fmt.Sprintf(`
 app:
   name: %s
@@ -153,29 +154,29 @@ app:
 		// Add cluster-specific resources for different clusters
 		if deployment.ClusterID == "prod-east" {
 			// Add an Ingress for production east
-			resources = append(resources, map[string]interface{}{
+			resources = append(resources, map[string]any{
 				"apiVersion": "networking.k8s.io/v1",
 				"kind":       "Ingress",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      fmt.Sprintf("%s-ingress", deployment.AppName),
 					"namespace": "default",
-					"annotations": map[string]interface{}{
+					"annotations": map[string]any{
 						"nginx.ingress.kubernetes.io/rewrite-target": "/",
 					},
 				},
-				"spec": map[string]interface{}{
-					"rules": []map[string]interface{}{
+				"spec": map[string]any{
+					"rules": []map[string]any{
 						{
 							"host": fmt.Sprintf("%s.prod-east.example.com", deployment.AppName),
-							"http": map[string]interface{}{
-								"paths": []map[string]interface{}{
+							"http": map[string]any{
+								"paths": []map[string]any{
 									{
 										"path":     "/",
 										"pathType": "Prefix",
-										"backend": map[string]interface{}{
-											"service": map[string]interface{}{
+										"backend": map[string]any{
+											"service": map[string]any{
 												"name": fmt.Sprintf("%s-service", deployment.AppName),
-												"port": map[string]interface{}{
+												"port": map[string]any{
 													"number": 80,
 												},
 											},
@@ -198,7 +199,7 @@ app:
 
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	// Encode and send response
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Error encoding response: %v", err)
@@ -209,12 +210,14 @@ app:
 	log.Printf("Successfully generated %d deployment responses", len(response))
 }
 
-func healthCheck(w http.ResponseWriter, r *http.Request) {
+func healthCheck(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status":  "healthy",
 		"service": "mock-airnity-server",
-	})
+	}); err != nil {
+		log.Printf("Error encoding health check response: %v", err)
+	}
 }
 
 func main() {
@@ -230,8 +233,16 @@ func main() {
 
 	log.Printf("Mock airnity server ready to receive requests at http://localhost:%s", port)
 	log.Printf("Health check available at http://localhost:%s/health", port)
-	
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+
+	// Create server with timeouts to address security concerns
+	server := &http.Server{
+		Addr:         ":" + port,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
