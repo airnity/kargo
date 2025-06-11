@@ -170,6 +170,22 @@ func Test_airnityRenderer_validate(t *testing.T) {
 			},
 			expectedProblems: nil,
 		},
+		{
+			name: "valid configuration with outPath",
+			config: promotion.Config{
+				"environment": "dev",
+				"repoURL":     "https://github.com/example/repo",
+				"commit":   "abc123",
+				"deployments": []any{
+					map[string]any{
+						"clusterId": "test-cluster",
+						"appName":   "test-app",
+					},
+				},
+				"outPath": "manifests",
+			},
+			expectedProblems: nil,
+		},
 	}
 
 	r := newAirnityRenderer()
@@ -433,6 +449,99 @@ func Test_airnityRenderer_run(t *testing.T) {
 				assert.Error(t, err)
 				assert.Equal(t, kargoapi.PromotionStepStatusErrored, result.Status)
 				assert.Contains(t, err.Error(), "error unmarshaling response")
+			},
+		},
+		{
+			name: "successful render with custom outPath",
+			config: builtin.AirnityRendererConfig{
+				Environment: "dev",
+				RepoURL:     "https://github.com/example/repo",
+				Commit:      "abc123",
+				OutPath:     "manifests",
+				Deployments: []builtin.Deployment{
+					{
+						ClusterID: "test-cluster",
+						AppName:   "test-app",
+					},
+				},
+			},
+			serverResponse: []AirnityResponseItem{
+				{
+					ClusterID: "test-cluster",
+					AppName:   "test-app",
+					Resources: []map[string]interface{}{
+						{
+							"apiVersion": "apps/v1",
+							"kind":       "Deployment",
+							"metadata": map[string]interface{}{
+								"name":      "test-app",
+								"namespace": "default",
+							},
+						},
+					},
+				},
+			},
+			serverStatus: http.StatusOK,
+			assertions: func(t *testing.T, workDir string, result promotion.StepResult, err error) {
+				assert.NoError(t, err)
+				assert.Equal(t, kargoapi.PromotionStepStatusSucceeded, result.Status)
+
+				// Check that files were created in the custom outPath directory
+				deploymentFile := filepath.Join(workDir, "manifests", "test-cluster", "test-app", "apps.deployment-test-app-default.yaml")
+				assert.FileExists(t, deploymentFile)
+
+				// Verify the working directory doesn't have files directly
+				directFile := filepath.Join(workDir, "test-cluster", "test-app", "apps.deployment-test-app-default.yaml")
+				assert.NoFileExists(t, directFile)
+
+				// Verify content
+				content, err := os.ReadFile(deploymentFile)
+				assert.NoError(t, err)
+				assert.Contains(t, string(content), "name: test-app")
+			},
+		},
+		{
+			name: "outPath with directory traversal attempt is normalized",
+			config: builtin.AirnityRendererConfig{
+				Environment: "dev",
+				RepoURL:     "https://github.com/example/repo",
+				Commit:      "abc123",
+				OutPath:     "../../../safe-dir",
+				Deployments: []builtin.Deployment{
+					{
+						ClusterID: "test-cluster",
+						AppName:   "test-app",
+					},
+				},
+			},
+			serverResponse: []AirnityResponseItem{
+				{
+					ClusterID: "test-cluster",
+					AppName:   "test-app",
+					Resources: []map[string]interface{}{
+						{
+							"apiVersion": "v1",
+							"kind":       "ConfigMap",
+							"metadata": map[string]interface{}{
+								"name":      "test-config",
+								"namespace": "default",
+							},
+						},
+					},
+				},
+			},
+			serverStatus: http.StatusOK,
+			assertions: func(t *testing.T, workDir string, result promotion.StepResult, err error) {
+				assert.NoError(t, err)
+				assert.Equal(t, kargoapi.PromotionStepStatusSucceeded, result.Status)
+
+				// Verify the file is created in the normalized path within workDir
+				normalizedFile := filepath.Join(workDir, "safe-dir", "test-cluster", "test-app", "configmap-test-config-default.yaml")
+				assert.FileExists(t, normalizedFile)
+
+				// Verify it's not created outside the workDir
+				outsideFile := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(workDir))), "safe-dir", "test-cluster", "test-app", "configmap-test-config-default.yaml")
+				assert.NoFileExists(t, outsideFile)
 			},
 		},
 		{

@@ -130,8 +130,25 @@ func (a *airnityRenderer) run(
 
 	logger.Debug("received response from airnity server", "items", len(responseItems))
 
+	// Determine output directory
+	outDir := stepCtx.WorkDir
+	fmt.Println("DEBUG Using work directory:", outDir)
+	if cfg.OutPath != "" {
+		var err error
+		outDir, err = securejoin.SecureJoin(stepCtx.WorkDir, cfg.OutPath)
+		if err != nil {
+			return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
+				fmt.Errorf("could not secure join outPath %q: %w", cfg.OutPath, err)
+		}
+	}
+
+	// Debug
+	for _, item := range responseItems {
+		fmt.Println("DEBUG Item:", item.AppName)
+	}
+
 	// Write manifests to files
-	if err := a.writeManifests(ctx, stepCtx.WorkDir, responseItems); err != nil {
+	if err := a.writeManifests(ctx, outDir, responseItems); err != nil {
 		return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
 			fmt.Errorf("error writing manifests: %w", err)
 	}
@@ -216,11 +233,17 @@ func (a *airnityRenderer) writeManifests(
 ) error {
 	logger := logging.LoggerFromContext(ctx)
 
+	// Ensure the base working directory exists
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		return fmt.Errorf("error creating base directory %s: %w", workDir, err)
+	}
+
 	// Create a temporary directory for atomic operations
 	tempDir, err := os.MkdirTemp(workDir, "airnity-temp-*")
 	if err != nil {
 		return fmt.Errorf("error creating temporary directory: %w", err)
 	}
+	fmt.Println("DEBUG Using temporary directory:", tempDir)
 
 	// Ensure cleanup of temp directory on any failure
 	defer func() {
@@ -280,6 +303,8 @@ func (a *airnityRenderer) writeManifests(
 
 func (a *airnityRenderer) moveManifestFiles(ctx context.Context, srcDir, destDir string) error {
 	logger := logging.LoggerFromContext(ctx)
+
+	fmt.Println("Moving manifest files from", srcDir, "to", destDir)
 
 	// Read all files from source directory
 	entries, err := os.ReadDir(srcDir)
@@ -366,7 +391,7 @@ func (a *airnityRenderer) writeResourceToFile(
 		return fmt.Errorf("error writing file %s: %w", filePath, err)
 	}
 
-	logger.Trace("wrote resource to file", "file", filename, "gvk", gvk.String(), "name", name)
+	logger.Debug("wrote resource to file", "file", filename, "gvk", gvk.String(), "name", name, "filePath", filePath)
 	return nil
 }
 
