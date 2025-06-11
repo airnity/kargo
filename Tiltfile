@@ -251,3 +251,29 @@ k8s_resource(
   ],
   labels = ['mock-services']
 )
+
+# Example Kargo resources for testing
+k8s_yaml('hack/examples/rolebinding.yaml')
+k8s_yaml('hack/examples/airnity-test-stage.yaml')
+
+# Only include secret.yaml if it exists (since it's git-ignored)
+if os.path.exists('hack/examples/secret.yaml'):
+  k8s_yaml('hack/examples/secret.yaml')
+
+# Build objects list conditionally based on whether secret exists
+examples_objects = [
+  'kargo-controller-read-secrets:rolebinding:kargo',
+  'airnity-test:project',
+  'airnity-test-warehouse:warehouse:airnity-test',
+  'dev:stage:airnity-test'
+]
+
+# Add secret to objects list if it exists
+if os.path.exists('hack/examples/secret.yaml'):
+  examples_objects.append('kargo-github-app:secret:kargo')
+
+k8s_resource(
+  new_name = 'examples',
+  labels = ['examples'],
+  objects = examples_objects
+)

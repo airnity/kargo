@@ -35,3 +35,17 @@ The airnity-render runner connects directly to this service endpoint, simplifyin
 - `values.dev.yaml` - Helm values for development
 - `ui.yaml` - UI deployment configuration  
 - `mock-airnity-server.yaml` - Mock airnity server deployment
+
+## Example Resources
+
+Tilt also deploys example Kargo resources from `hack/examples/` for testing:
+
+- **Examples Label Group**: Contains test Project, Warehouse, and Stage resources
+- **Namespace**: `airnity-test` - Isolated environment for testing
+- **Resources**:
+  - `airnity-test` Project with auto-promotion enabled
+  - `airnity-test-warehouse` Warehouse tracking a Git repository
+  - `dev` Stage with airnity-render promotion steps
+  - RoleBinding for secret access (if `secret.yaml` exists)
+
+These resources demonstrate the airnity-render promotion runner in action and can be used to test end-to-end promotion workflows.
