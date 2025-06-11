@@ -44,7 +44,7 @@ spec:
         uses: git-clone
       - uses: airnity-render
         config:
-          environment: dev
+          environment: "http://app-generator.kargo.svc.cluster.local"
           repoURL: https://github.com/example/sample-app.git
           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
           outPath: ./target
