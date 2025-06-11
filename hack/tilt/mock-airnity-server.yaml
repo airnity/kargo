@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-airnity-server
+  namespace: kargo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-airnity-server
+  template:
+    metadata:
+      labels:
+        app: mock-airnity-server
+    spec:
+      containers:
+      - name: mock-airnity-server
+        image: mock-airnity-server:dev
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 2
+          periodSeconds: 5
+---
+# Service for airnity app-generator in kargo namespace
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-generator
+  namespace: kargo
+spec:
+  selector:
+    app: mock-airnity-server
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-airnity-server
+  namespace: kargo
+spec:
+  selector:
+    app: mock-airnity-server
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  type: ClusterIP

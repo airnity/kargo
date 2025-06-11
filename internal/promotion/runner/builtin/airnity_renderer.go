@@ -118,7 +118,7 @@ func (a *airnityRenderer) run(
 	if strings.Contains(cfg.Environment, "://") {
 		url = cfg.Environment
 	} else {
-		url = fmt.Sprintf("http://app-generator.admin.%s.airnity.private", cfg.Environment)
+		url = "http://app-generator.kargo.svc.cluster.local"
 	}
 
 	// Make the HTTP request
