@@ -10,3 +10,6 @@ pkg/api/v1alpha1/
 vendor/
 internal/server/ui/
 .DS_Store
+
+# Secrets - should not be committed
+hack/examples/secret.yaml

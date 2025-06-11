@@ -13,6 +13,9 @@ type AirnityRendererConfig struct {
 	Deployments []Deployment `json:"deployments"`
 	// The environment name used to construct the airnity server URL.
 	Environment string `json:"environment"`
+	// The path within the working directory where rendered manifests should be written. If not
+	// specified, manifests are written to the root of the working directory.
+	OutPath string `json:"outPath,omitempty"`
 	// The Git repository URL.
 	RepoURL string `json:"repoURL"`
 	// The maximum time to wait for the request to complete. If not specified, the default is 30

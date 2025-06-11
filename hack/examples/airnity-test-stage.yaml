@@ -13,10 +13,12 @@ metadata:
   name: airnity-test-warehouse
   namespace: airnity-test
 spec:
+  interval: 5m0s
   subscriptions:
   - git:
-      repoURL: https://github.com/example/sample-app.git
+      repoURL: https://github.com/airnity/argo-labs
       branch: main
+      strictSemvers: false
 ---
 apiVersion: kargo.akuity.io/v1alpha1
 kind: Stage
@@ -33,78 +35,111 @@ spec:
   promotionTemplate:
     spec:
       steps:
+      - as: gitClone
+        config:
+          checkout:
+            - branch: rendered/test
+              path: ./target
+          repoURL: https://github.com/airnity/argo-labs
+        uses: git-clone
       - uses: airnity-render
         config:
           environment: dev
           repoURL: https://github.com/example/sample-app.git
-          commit: ${{ ctx.promotion.freight.commits[0].id }}
+          commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+          outPath: ./target
           deployments:
           - clusterId: dev-east
             appName: frontend
           - clusterId: dev-west
             appName: backend
           timeout: 60s
----
-apiVersion: kargo.akuity.io/v1alpha1
-kind: Stage
-metadata:
-  name: staging
-  namespace: airnity-test
-spec:
-  requestedFreight:
-  - origin:
-      kind: Warehouse
-      name: airnity-test-warehouse
-    sources:
-      stages:
-      - dev
-  promotionTemplate:
-    spec:
-      steps:
-      - uses: airnity-render
+      - as: gitCommit
+        uses: git-commit
         config:
-          environment: staging
-          repoURL: https://github.com/example/sample-app.git
-          commit: ${{ ctx.promotion.freight.commits[0].id }}
-          deployments:
-          - clusterId: staging-east
-            appName: frontend
-          - clusterId: staging-west
-            appName: backend
-          - clusterId: staging-central
-            appName: api
-          timeout: 60s
----
-apiVersion: kargo.akuity.io/v1alpha1
-kind: Stage
-metadata:
-  name: prod
-  namespace: airnity-test
-spec:
-  requestedFreight:
-  - origin:
-      kind: Warehouse
-      name: airnity-test-warehouse
-    sources:
-      stages:
-      - staging
-  promotionTemplate:
-    spec:
-      steps:
-      - uses: airnity-render
+          path: ./target
+          message: Test rendering
+      - as: gitPush
+        uses: git-push
         config:
-          environment: prod
-          repoURL: https://github.com/example/sample-app.git
-          commit: ${{ ctx.promotion.freight.commits[0].id }}
-          deployments:
-          - clusterId: prod-east
-            appName: frontend
-          - clusterId: prod-west
-            appName: frontend
-          - clusterId: prod-east
-            appName: backend
-          - clusterId: prod-west
-            appName: backend
-          - clusterId: prod-central
-            appName: api
-          timeout: 120s
+          path: ./target
+          targetBranch: kargo-promotion-test
+          maxAttempts: 5
+      - as: openPr
+        uses: git-open-pr
+        config:
+          repoURL: https://github.com/airnity/argo-labs
+          provider: github
+          createTargetBranch: true
+          sourceBranch: kargo-promotion-test
+          targetBranch: rendered/test
+          title: Test PR for Kargo Promotion
+      - as: waitForPr
+        uses: git-wait-for-pr
+        config:
+          repoURL: https://github.com/airnity/argo-labs
+          prNumber: ${{ outputs.openPr.prNumber }}
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: Stage
+# metadata:
+#   name: staging
+#   namespace: airnity-test
+# spec:
+#   requestedFreight:
+#   - origin:
+#       kind: Warehouse
+#       name: airnity-test-warehouse
+#     sources:
+#       stages:
+#       - dev
+#   promotionTemplate:
+#     spec:
+#       steps:
+#       - uses: airnity-render
+#         config:
+#           environment: staging
+#           repoURL: https://github.com/example/sample-app.git
+#           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+#           deployments:
+#           - clusterId: staging-east
+#             appName: frontend
+#           - clusterId: staging-west
+#             appName: backend
+#           - clusterId: staging-central
+#             appName: api
+#           timeout: 60s
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: Stage
+# metadata:
+#   name: prod
+#   namespace: airnity-test
+# spec:
+#   requestedFreight:
+#   - origin:
+#       kind: Warehouse
+#       name: airnity-test-warehouse
+#     sources:
+#       stages:
+#       - staging
+#   promotionTemplate:
+#     spec:
+#       steps:
+#       - uses: airnity-render
+#         config:
+#           environment: prod
+#           repoURL: https://github.com/example/sample-app.git
+#           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+#           deployments:
+#           - clusterId: prod-east
+#             appName: frontend
+#           - clusterId: prod-west
+#             appName: frontend
+#           - clusterId: prod-east
+#             appName: backend
+#           - clusterId: prod-west
+#             appName: backend
+#           - clusterId: prod-central
+#             appName: api
+#           timeout: 120s
