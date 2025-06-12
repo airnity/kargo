@@ -24,13 +24,8 @@
 
   "type": "object",
   "additionalProperties": false,
-  "required": ["environment", "repoURL", "commit", "deployments"],
+  "required": ["repoURL", "commit", "deployments"],
   "properties": {
-    "environment": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The environment name used to construct the airnity server URL."
-    },
     "repoURL": {
       "type": "string",
       "minLength": 1,

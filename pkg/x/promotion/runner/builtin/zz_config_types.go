@@ -11,8 +11,6 @@ type AirnityRendererConfig struct {
 	Commit string `json:"commit"`
 	// List of deployment targets with cluster and app information.
 	Deployments []Deployment `json:"deployments"`
-	// The environment name used to construct the airnity server URL.
-	Environment string `json:"environment"`
 	// The path within the working directory where rendered manifests should be written. If not
 	// specified, manifests are written to the root of the working directory.
 	OutPath string `json:"outPath,omitempty"`

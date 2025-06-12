@@ -22,11 +22,6 @@
  "type": "object",
  "additionalProperties": false,
  "properties": {
-  "environment": {
-   "type": "string",
-   "minLength": 1,
-   "description": "The environment name used to construct the airnity server URL."
-  },
   "repoURL": {
    "type": "string",
    "minLength": 1,
