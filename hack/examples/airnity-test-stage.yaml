@@ -44,14 +44,13 @@ spec:
         uses: git-clone
       - uses: airnity-render
         config:
-          environment: "http://app-generator.kargo.svc.cluster.local"
           repoURL: https://github.com/example/sample-app.git
           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
           outPath: ./target
           deployments:
-          - clusterId: dev-east
+          - clusterId: gcp-it-central
             appName: frontend
-          - clusterId: dev-west
+          - clusterId: gcp-dev-central
             appName: backend
           timeout: 60s
       - as: gitCommit
