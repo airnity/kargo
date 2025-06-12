@@ -13,3 +13,4 @@ internal/server/ui/
 
 # Secrets - should not be committed
 hack/examples/secret.yaml
+CLAUDE.local.md

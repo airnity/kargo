@@ -276,6 +276,6 @@ k8s_resource(
   new_name = 'examples',
   labels = ['examples'],
   objects = examples_objects,
-  resource_deps=['crds', 'kargo-api', 'kargo-controller', 'mock-airnity-server'],
+  resource_deps=['crds', 'mock-airnity-server'],
   trigger_mode = TRIGGER_MODE_AUTO
 )
