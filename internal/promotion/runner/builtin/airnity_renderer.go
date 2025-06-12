@@ -13,8 +13,6 @@ import (
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/xeipuuv/gojsonschema"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
 	kargoapi "github.com/akuity/kargo/api/v1alpha1"
@@ -83,11 +81,21 @@ type AirnityRequest struct {
 	Deployments []AirnityDeployment `json:"deployments"`
 }
 
+// KubernetesResource represents a Kubernetes resource with metadata
+type KubernetesResource struct {
+	Group     string `json:"group"`
+	Version   string `json:"version"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace *string `json:"namespace"`
+	Manifest  any    `json:"manifest"`
+}
+
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	AppName   string                   `json:"appName"`
-	ClusterID string                   `json:"clusterId"`
-	Resources []map[string]interface{} `json:"resources"`
+	ClusterID string                `json:"cluster_id"`
+	AppName   string                `json:"app_name"`
+	Resources []KubernetesResource  `json:"resources"`
 }
 
 func (a *airnityRenderer) run(
@@ -112,14 +120,8 @@ func (a *airnityRenderer) run(
 		Deployments: deployments,
 	}
 
-	// Construct the URL from environment
-	// For testing, if Environment contains "://" it's treated as a full URL
-	var url string
-	if strings.Contains(cfg.Environment, "://") {
-		url = cfg.Environment
-	} else {
-		url = "http://app-generator.kargo.svc.cluster.local"
-	}
+	// Use the fixed URL to the mock airnity server
+	url := "http://app-generator.kargo.svc.cluster.local"
 
 	// Make the HTTP request
 	responseItems, err := a.makeHTTPRequest(ctx, url, cfg, requestPayload)
@@ -353,28 +355,24 @@ func (a *airnityRenderer) copyFile(src, dest string) error {
 func (a *airnityRenderer) writeResourceToFile(
 	ctx context.Context,
 	appDir string,
-	resource map[string]interface{},
+	resource KubernetesResource,
 	index int,
 ) error {
 	logger := logging.LoggerFromContext(ctx)
 
-	// Convert to unstructured to extract metadata
-	unstructuredObj := &unstructured.Unstructured{Object: resource}
-
-	// Get resource information
-	gvk := unstructuredObj.GroupVersionKind()
-	name := unstructuredObj.GetName()
-	namespace := unstructuredObj.GetNamespace()
-
-	// Generate filename
-	filename := a.generateFilename(gvk, name, namespace, index)
+	// Generate filename from the resource metadata
+	var namespace string
+	if resource.Namespace != nil {
+		namespace = *resource.Namespace
+	}
+	filename := a.generateFilename(resource.Group, resource.Version, resource.Kind, resource.Name, namespace, index)
 	filePath, err := securejoin.SecureJoin(appDir, filename)
 	if err != nil {
 		return fmt.Errorf("error joining path: %w", err)
 	}
 
-	// Convert resource to YAML
-	yamlBytes, err := yaml.Marshal(resource)
+	// Convert resource manifest to YAML
+	yamlBytes, err := yaml.Marshal(resource.Manifest)
 	if err != nil {
 		return fmt.Errorf("error marshaling resource to YAML: %w", err)
 	}
@@ -384,16 +382,16 @@ func (a *airnityRenderer) writeResourceToFile(
 		return fmt.Errorf("error writing file %s: %w", filePath, err)
 	}
 
-	logger.Debug("wrote resource to file", "file", filename, "gvk", gvk.String(), "name", name, "filePath", filePath)
+	logger.Debug("wrote resource to file", "file", filename, "group", resource.Group, "version", resource.Version, "kind", resource.Kind, "name", resource.Name, "filePath", filePath)
 	return nil
 }
 
-func (a *airnityRenderer) generateFilename(gvk schema.GroupVersionKind, name, namespace string, index int) string {
+func (a *airnityRenderer) generateFilename(group, version, kind, name, namespace string, index int) string {
 	// Start with GVK
-	gvkStr := strings.ToLower(gvk.Kind)
-	if gvk.Group != "" {
+	gvkStr := strings.ToLower(kind)
+	if group != "" {
 		// For core resources (v1), group is empty, so we don't need to handle that specially
-		gvkStr = fmt.Sprintf("%s.%s", strings.ToLower(gvk.Group), gvkStr)
+		gvkStr = fmt.Sprintf("%s.%s", strings.ToLower(group), gvkStr)
 	}
 
 	// Build filename components

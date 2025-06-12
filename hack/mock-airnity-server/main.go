@@ -22,11 +22,21 @@ type AirnityRequest struct {
 	Deployments []AirnityDeployment `json:"deployments"`
 }
 
+// KubernetesResource represents a Kubernetes resource with metadata
+type KubernetesResource struct {
+	Group     string      `json:"group"`
+	Version   string      `json:"version"`
+	Kind      string      `json:"kind"`
+	Name      string      `json:"name"`
+	Namespace *string     `json:"namespace"`
+	Manifest  any `json:"manifest"`
+}
+
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	AppName   string           `json:"appName"`
-	ClusterID string           `json:"clusterId"`
-	Resources []map[string]any `json:"resources"`
+	ClusterID string                `json:"cluster_id"`
+	AppName   string                `json:"app_name"`
+	Resources []KubernetesResource  `json:"resources"`
 }
 
 func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
@@ -52,51 +62,59 @@ func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Generating manifests for cluster: %s, app: %s", deployment.ClusterID, deployment.AppName)
 
 		// Create mock Kubernetes resources
-		resources := []map[string]any{
+		defaultNamespace := "default"
+		resources := []KubernetesResource{
 			// Mock Deployment
 			{
-				"apiVersion": "apps/v1",
-				"kind":       "Deployment",
-				"metadata": map[string]any{
-					"name":      deployment.AppName,
-					"namespace": "default",
-					"labels": map[string]any{
-						"app":     deployment.AppName,
-						"cluster": deployment.ClusterID,
-						"commit":  req.Commit,
-					},
-				},
-				"spec": map[string]any{
-					"replicas": 5,
-					"selector": map[string]any{
-						"matchLabels": map[string]any{
-							"app": deployment.AppName,
+				Group:     "apps",
+				Version:   "v1",
+				Kind:      "Deployment",
+				Name:      deployment.AppName,
+				Namespace: &defaultNamespace,
+				Manifest: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      deployment.AppName,
+						"namespace": "default",
+						"labels": map[string]any{
+							"app":     deployment.AppName,
+							"cluster": deployment.ClusterID,
+							"commit":  req.Commit,
 						},
 					},
-					"template": map[string]any{
-						"metadata": map[string]any{
-							"labels": map[string]any{
+					"spec": map[string]any{
+						"replicas": 5,
+						"selector": map[string]any{
+							"matchLabels": map[string]any{
 								"app": deployment.AppName,
 							},
 						},
-						"spec": map[string]any{
-							"containers": []map[string]any{
-								{
-									"name":  deployment.AppName,
-									"image": fmt.Sprintf("myregistry/%s:%s", deployment.AppName, req.Commit[:8]),
-									"ports": []map[string]any{
-										{
-											"containerPort": 8080,
+						"template": map[string]any{
+							"metadata": map[string]any{
+								"labels": map[string]any{
+									"app": deployment.AppName,
+								},
+							},
+							"spec": map[string]any{
+								"containers": []map[string]any{
+									{
+										"name":  deployment.AppName,
+										"image": fmt.Sprintf("myregistry/%s:%s", deployment.AppName, req.Commit[:8]),
+										"ports": []map[string]any{
+											{
+												"containerPort": 8080,
+											},
 										},
-									},
-									"env": []map[string]any{
-										{
-											"name":  "CLUSTER_ID",
-											"value": deployment.ClusterID,
-										},
-										{
-											"name":  "GIT_COMMIT",
-											"value": req.Commit,
+										"env": []map[string]any{
+											{
+												"name":  "CLUSTER_ID",
+												"value": deployment.ClusterID,
+											},
+											{
+												"name":  "GIT_COMMIT",
+												"value": req.Commit,
+											},
 										},
 									},
 								},
@@ -107,46 +125,60 @@ func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
 			},
 			// Mock Service
 			{
-				"apiVersion": "v1",
-				"kind":       "Service",
-				"metadata": map[string]any{
-					"name":      fmt.Sprintf("%s-service", deployment.AppName),
-					"namespace": "default",
-					"labels": map[string]any{
-						"app":     deployment.AppName,
-						"cluster": deployment.ClusterID,
-					},
-				},
-				"spec": map[string]any{
-					"selector": map[string]any{
-						"app": deployment.AppName,
-					},
-					"ports": []map[string]any{
-						{
-							"name":       "http",
-							"port":       80,
-							"targetPort": 8080,
+				Group:     "",
+				Version:   "v1",
+				Kind:      "Service",
+				Name:      fmt.Sprintf("%s-service", deployment.AppName),
+				Namespace: &defaultNamespace,
+				Manifest: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Service",
+					"metadata": map[string]any{
+						"name":      fmt.Sprintf("%s-service", deployment.AppName),
+						"namespace": "default",
+						"labels": map[string]any{
+							"app":     deployment.AppName,
+							"cluster": deployment.ClusterID,
 						},
 					},
-					"type": "ClusterIP",
+					"spec": map[string]any{
+						"selector": map[string]any{
+							"app": deployment.AppName,
+						},
+						"ports": []map[string]any{
+							{
+								"name":       "http",
+								"port":       80,
+								"targetPort": 8080,
+							},
+						},
+						"type": "ClusterIP",
+					},
 				},
 			},
 			// Mock ConfigMap
 			{
-				"apiVersion": "v1",
-				"kind":       "ConfigMap",
-				"metadata": map[string]any{
-					"name":      fmt.Sprintf("%s-config", deployment.AppName),
-					"namespace": "default",
-				},
-				"data": map[string]any{
-					"config.yaml": fmt.Sprintf(`
+				Group:     "",
+				Version:   "v1",
+				Kind:      "ConfigMap",
+				Name:      fmt.Sprintf("%s-config", deployment.AppName),
+				Namespace: &defaultNamespace,
+				Manifest: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "ConfigMap",
+					"metadata": map[string]any{
+						"name":      fmt.Sprintf("%s-config", deployment.AppName),
+						"namespace": "default",
+					},
+					"data": map[string]any{
+						"config.yaml": fmt.Sprintf(`
 app:
   name: %s
   cluster: %s
   commit: %s
   environment: dev
 `, deployment.AppName, deployment.ClusterID, req.Commit),
+					},
 				},
 			},
 		}
@@ -154,30 +186,37 @@ app:
 		// Add cluster-specific resources for different clusters
 		if deployment.ClusterID == "prod-east" {
 			// Add an Ingress for production east
-			resources = append(resources, map[string]any{
-				"apiVersion": "networking.k8s.io/v1",
-				"kind":       "Ingress",
-				"metadata": map[string]any{
-					"name":      fmt.Sprintf("%s-ingress", deployment.AppName),
-					"namespace": "default",
-					"annotations": map[string]any{
-						"nginx.ingress.kubernetes.io/rewrite-target": "/",
+			resources = append(resources, KubernetesResource{
+				Group:     "networking.k8s.io",
+				Version:   "v1",
+				Kind:      "Ingress",
+				Name:      fmt.Sprintf("%s-ingress", deployment.AppName),
+				Namespace: &defaultNamespace,
+				Manifest: map[string]any{
+					"apiVersion": "networking.k8s.io/v1",
+					"kind":       "Ingress",
+					"metadata": map[string]any{
+						"name":      fmt.Sprintf("%s-ingress", deployment.AppName),
+						"namespace": "default",
+						"annotations": map[string]any{
+							"nginx.ingress.kubernetes.io/rewrite-target": "/",
+						},
 					},
-				},
-				"spec": map[string]any{
-					"rules": []map[string]any{
-						{
-							"host": fmt.Sprintf("%s.prod-east.example.com", deployment.AppName),
-							"http": map[string]any{
-								"paths": []map[string]any{
-									{
-										"path":     "/",
-										"pathType": "Prefix",
-										"backend": map[string]any{
-											"service": map[string]any{
-												"name": fmt.Sprintf("%s-service", deployment.AppName),
-												"port": map[string]any{
-													"number": 80,
+					"spec": map[string]any{
+						"rules": []map[string]any{
+							{
+								"host": fmt.Sprintf("%s.prod-east.example.com", deployment.AppName),
+								"http": map[string]any{
+									"paths": []map[string]any{
+										{
+											"path":     "/",
+											"pathType": "Prefix",
+											"backend": map[string]any{
+												"service": map[string]any{
+													"name": fmt.Sprintf("%s-service", deployment.AppName),
+													"port": map[string]any{
+														"number": 80,
+													},
 												},
 											},
 										},
