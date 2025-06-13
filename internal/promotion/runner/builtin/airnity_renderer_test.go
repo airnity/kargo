@@ -248,10 +248,10 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 				assert.Equal(t, kargoapi.PromotionStepStatusSucceeded, result.Status)
 
 				// Check that files were created
-				deploymentFile := filepath.Join(workDir, "prod-east", "frontend", "apps.deployment-frontend-default.yaml")
+				deploymentFile := filepath.Join(workDir, "prod-east", "frontend", "apps", "deployment", "default", "frontend.yaml")
 				assert.FileExists(t, deploymentFile)
 
-				serviceFile := filepath.Join(workDir, "prod-east", "frontend", "service-frontend-svc-default.yaml")
+				serviceFile := filepath.Join(workDir, "prod-east", "frontend", "core", "service", "default", "frontend-svc.yaml")
 				assert.FileExists(t, serviceFile)
 
 				// Verify file content
@@ -341,11 +341,10 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 	}
 }
 
-func Test_airnityRenderer_generateFilename_New(t *testing.T) {
+func Test_airnityRenderer_generateFilePath_New(t *testing.T) {
 	tests := []struct {
 		name      string
 		group     string
-		version   string
 		kind      string
 		resName   string
 		namespace string
@@ -355,52 +354,47 @@ func Test_airnityRenderer_generateFilename_New(t *testing.T) {
 		{
 			name:      "deployment with namespace",
 			group:     "apps",
-			version:   "v1", 
 			kind:      "Deployment",
 			resName:   "frontend",
 			namespace: "default",
 			index:     0,
-			expected:  "apps.deployment-frontend-default.yaml",
+			expected:  "apps/deployment/default/frontend.yaml",
 		},
 		{
 			name:      "service with namespace",
 			group:     "",
-			version:   "v1",
 			kind:      "Service",
 			resName:   "frontend-svc",
 			namespace: "default",
 			index:     0,
-			expected:  "service-frontend-svc-default.yaml",
+			expected:  "core/service/default/frontend-svc.yaml",
 		},
 		{
 			name:      "namespace without namespace",
 			group:     "",
-			version:   "v1",
 			kind:      "Namespace",
 			resName:   "test-namespace",
 			namespace: "",
 			index:     0,
-			expected:  "namespace-test-namespace.yaml",
+			expected:  "core/namespace/cluster-scoped/test-namespace.yaml",
 		},
 		{
 			name:      "resource without name",
 			group:     "",
-			version:   "v1",
 			kind:      "ConfigMap",
 			resName:   "",
 			namespace: "default",
 			index:     2,
-			expected:  "configmap-resource-2-default.yaml",
+			expected:  "core/configmap/default/resource-2.yaml",
 		},
 		{
 			name:      "custom resource",
 			group:     "argoproj.io",
-			version:   "v1alpha1",
 			kind:      "Application",
 			resName:   "my-app",
 			namespace: "argocd",
 			index:     0,
-			expected:  "argoproj.io.application-my-app-argocd.yaml",
+			expected:  "argoproj.io/application/argocd/my-app.yaml",
 		},
 	}
 
@@ -410,7 +404,7 @@ func Test_airnityRenderer_generateFilename_New(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := runner.generateFilename(tt.group, tt.version, tt.kind, tt.resName, tt.namespace, tt.index)
+			result := runner.generateFilePath(tt.group, tt.kind, tt.resName, tt.namespace, tt.index)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

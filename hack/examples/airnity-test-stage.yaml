@@ -48,9 +48,9 @@ spec:
           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
           outPath: ./target
           deployments:
-          - clusterId: gcp-it-central
+          - clusterId: dev-east
             appName: frontend
-          - clusterId: gcp-dev-central
+          - clusterId: dev-west
             appName: backend
           timeout: 60s
       - as: gitCommit
