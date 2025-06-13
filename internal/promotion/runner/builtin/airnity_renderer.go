@@ -270,7 +270,7 @@ func (a *airnityRenderer) writeManifests(
 		logger.Trace("wrote manifests for app to temp location", "cluster", item.ClusterID, "app", item.AppName, "resources", len(item.Resources))
 	}
 
-	// Now atomically move files from temp directory to final location
+	// Now atomically move app directories from temp directory to final location
 	for _, item := range responseItems {
 		tempClusterDir := filepath.Join(tempDir, item.ClusterID)
 		tempAppDir := filepath.Join(tempClusterDir, item.AppName)
@@ -278,78 +278,47 @@ func (a *airnityRenderer) writeManifests(
 		finalClusterDir := filepath.Join(workDir, item.ClusterID)
 		finalAppDir := filepath.Join(finalClusterDir, item.AppName)
 
-		// Ensure final directory structure exists
-		if err := os.MkdirAll(finalAppDir, 0755); err != nil {
-			return fmt.Errorf("error creating final directory %s: %w", finalAppDir, err)
+		// Ensure final cluster directory exists
+		if err := os.MkdirAll(finalClusterDir, 0755); err != nil {
+			return fmt.Errorf("error creating final cluster directory %s: %w", finalClusterDir, err)
 		}
 
-		// Move files from temp to final location
-		if err := a.moveManifestFiles(ctx, tempAppDir, finalAppDir); err != nil {
-			return fmt.Errorf("error moving manifests for app %s in cluster %s: %w",
+		// Remove existing app directory content if it exists
+		if _, err := os.Stat(finalAppDir); err == nil {
+			if err := os.RemoveAll(finalAppDir); err != nil {
+				return fmt.Errorf("error removing existing app directory %s: %w", finalAppDir, err)
+			}
+		}
+
+		// Atomically move the entire app directory
+		if err := a.simpleAtomicMove(tempAppDir, finalAppDir); err != nil {
+			return fmt.Errorf("error moving app directory for app %s in cluster %s: %w",
 				item.AppName, item.ClusterID, err)
 		}
 
-		logger.Debug("moved manifests to final location", "cluster", item.ClusterID, "app", item.AppName)
+		logger.Debug("moved app directory to final location", "cluster", item.ClusterID, "app", item.AppName)
 	}
 
 	logger.Debug("successfully wrote all manifests atomically")
 	return nil
 }
 
-func (a *airnityRenderer) moveManifestFiles(ctx context.Context, srcDir, destDir string) error {
-	logger := logging.LoggerFromContext(ctx)
-
-	fmt.Println("Moving manifest files from", srcDir, "to", destDir)
-
-	// Read all files from source directory
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		return fmt.Errorf("error reading source directory %s: %w", srcDir, err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue // Skip directories, we only care about files
+func (a *airnityRenderer) simpleAtomicMove(src, dst string) error {
+	if err := os.Rename(src, dst); err != nil {
+		if !os.IsExist(err) {
+			return fmt.Errorf("failed to move %s to %s: %w", src, dst, err)
 		}
 
-		srcFile := filepath.Join(srcDir, entry.Name())
-		destFile := filepath.Join(destDir, entry.Name())
-
-		// Atomic move: rename from temp location to final location
-		if err := os.Rename(srcFile, destFile); err != nil {
-			// If rename fails (different filesystems), fall back to copy + delete
-			if err := a.copyFile(srcFile, destFile); err != nil {
-				return fmt.Errorf("error copying file %s to %s: %w", srcFile, destFile, err)
-			}
-			if err := os.Remove(srcFile); err != nil {
-				logger.Error(err, "failed to remove source file after copy", "file", srcFile)
-			}
+		// If the destination already exists, remove it and try again
+		if err := os.RemoveAll(dst); err != nil {
+			return fmt.Errorf("failed to remove existing destination %s: %w", dst, err)
 		}
 
-		logger.Trace("moved manifest file", "from", srcFile, "to", destFile)
+		if err := os.Rename(src, dst); err != nil {
+			return fmt.Errorf("failed to move %s to %s after removing existing: %w", src, dst, err)
+		}
 	}
-
 	return nil
-}
-
-func (a *airnityRenderer) copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("error opening source file: %w", err)
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("error creating destination file: %w", err)
-	}
-	defer destFile.Close()
-
-	if _, err := destFile.ReadFrom(srcFile); err != nil {
-		return fmt.Errorf("error copying file content: %w", err)
-	}
-
-	return destFile.Sync()
 }
 
 func (a *airnityRenderer) writeResourceToFile(
@@ -360,15 +329,21 @@ func (a *airnityRenderer) writeResourceToFile(
 ) error {
 	logger := logging.LoggerFromContext(ctx)
 
-	// Generate filename from the resource metadata
+	// Generate full path from the resource metadata
 	var namespace string
 	if resource.Namespace != nil {
 		namespace = *resource.Namespace
 	}
-	filename := a.generateFilename(resource.Group, resource.Version, resource.Kind, resource.Name, namespace, index)
-	filePath, err := securejoin.SecureJoin(appDir, filename)
+	relativePath := a.generateFilePath(resource.Group, resource.Kind, resource.Name, namespace, index)
+	filePath, err := securejoin.SecureJoin(appDir, relativePath)
 	if err != nil {
 		return fmt.Errorf("error joining path: %w", err)
+	}
+
+	// Create directories if they don't exist
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("error creating directories %s: %w", dir, err)
 	}
 
 	// Convert resource manifest to YAML
@@ -382,31 +357,39 @@ func (a *airnityRenderer) writeResourceToFile(
 		return fmt.Errorf("error writing file %s: %w", filePath, err)
 	}
 
-	logger.Debug("wrote resource to file", "file", filename, "group", resource.Group, "version", resource.Version, "kind", resource.Kind, "name", resource.Name, "filePath", filePath)
+	logger.Debug("wrote resource to file", "file", relativePath, "group", resource.Group, "version", resource.Version, "kind", resource.Kind, "name", resource.Name, "filePath", filePath)
 	return nil
 }
 
-func (a *airnityRenderer) generateFilename(group, version, kind, name, namespace string, index int) string {
-	// Start with GVK
-	gvkStr := strings.ToLower(kind)
+func (a *airnityRenderer) generateFilePath(group, kind, name, namespace string, index int) string {
+	// Build filename path: group/kind/namespace/name.yaml
+	pathComponents := []string{}
+
+	// Add group (use "core" for empty group)
 	if group != "" {
-		// For core resources (v1), group is empty, so we don't need to handle that specially
-		gvkStr = fmt.Sprintf("%s.%s", strings.ToLower(group), gvkStr)
+		pathComponents = append(pathComponents, strings.ToLower(group))
+	} else {
+		pathComponents = append(pathComponents, "core")
 	}
 
-	// Build filename components
-	components := []string{gvkStr}
+	// Add kind
+	pathComponents = append(pathComponents, strings.ToLower(kind))
 
+	// Add namespace (use "cluster-scoped" for empty namespace)
+	if namespace != "" {
+		pathComponents = append(pathComponents, namespace)
+	} else {
+		pathComponents = append(pathComponents, "cluster-scoped")
+	}
+
+	// Build filename
+	var filename string
 	if name != "" {
-		components = append(components, name)
+		filename = name + ".yaml"
 	} else {
 		// Fallback to index if no name
-		components = append(components, fmt.Sprintf("resource-%d", index))
+		filename = fmt.Sprintf("resource-%d.yaml", index)
 	}
 
-	if namespace != "" {
-		components = append(components, namespace)
-	}
-
-	return strings.Join(components, "-") + ".yaml"
+	return filepath.Join(append(pathComponents, filename)...)
 }
