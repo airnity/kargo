@@ -39,9 +39,13 @@ type KubernetesResource struct {
 
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	ClusterID string               `json:"cluster_id"`
-	AppName   string               `json:"app_name"`
+	ClusterID string               `json:"clusterId"`
+	AppName   string               `json:"appName"`
 	Resources []KubernetesResource `json:"resources"`
+}
+
+type AirnityResponse struct {
+	Data []AirnityResponseItem `json:"data"`
 }
 
 func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
@@ -241,11 +245,16 @@ func handleAirnityRequest(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
+
+	responseData := AirnityResponse{
+		Data: response,
+	}
+
 	// Set response headers
 	w.Header().Set("Content-Type", "application/json")
 
 	// Encode and send response
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	if err := json.NewEncoder(w).Encode(responseData); err != nil {
 		log.Printf("Error encoding response: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return

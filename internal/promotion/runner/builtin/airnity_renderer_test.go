@@ -30,16 +30,16 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		expectedProblems []string
 	}{
 		{
-			name:   "repoURL not specified",
+			name:   "argoRepoName not specified",
 			config: promotion.Config{},
 			expectedProblems: []string{
-				"(root): repoURL is required",
+				"(root): argoRepoName is required",
 			},
 		},
 		{
 			name: "gitRef not specified",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 			},
 			expectedProblems: []string{
 				"(root): gitRef is required",
@@ -48,7 +48,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "apps not specified",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -61,7 +61,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "apps is empty array",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -75,7 +75,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "app missing clusterIds",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -93,7 +93,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "app missing applicationManifestNames",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -111,7 +111,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "invalid timeout format",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -131,7 +131,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "valid configuration",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -148,7 +148,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "valid configuration with timeout",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -166,7 +166,7 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 		{
 			name: "valid configuration with outPath",
 			config: promotion.Config{
-				"repoURL": "https://github.com/example/repo",
+				"argoRepoName": "https://github.com/example/repo",
 				"gitRef": map[string]any{
 					"ref":  "abc123",
 					"type": "commit",
@@ -213,7 +213,7 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 		{
 			name: "successful render with single app",
 			config: builtin.AirnityRendererConfig{
-				RepoURL: "https://github.com/example/repo",
+				ArgoRepoName: "argo-test",
 				GitRef: builtin.GitRef{
 					Ref:  "abc123",
 					Type: "commit",
@@ -291,7 +291,7 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 		{
 			name: "server returns error status",
 			config: builtin.AirnityRendererConfig{
-				RepoURL: "https://github.com/example/repo",
+				ArgoRepoName: "argo-test",
 				GitRef: builtin.GitRef{
 					Ref:  "abc123",
 					Type: "commit",
@@ -433,7 +433,7 @@ func Test_airnityRenderer_generateFilePath_New(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := runner.generateFilePath(tt.group, tt.kind, tt.resName, tt.namespace, tt.index)
+			result := runner.generateFilePath(tt.group, tt.kind, tt.resName, tt.namespace)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -445,7 +445,7 @@ func Test_airnityRenderer_Run_ConfigValidation_New(t *testing.T) {
 	ctx := context.Background()
 	stepCtx := &promotion.StepContext{
 		Config: promotion.Config{
-			"repoURL": "", // Invalid: empty repoURL
+			"argoRepoName": "", // Invalid: empty argoRepoName
 		},
 		WorkDir: t.TempDir(),
 	}

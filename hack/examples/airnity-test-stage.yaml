@@ -16,7 +16,7 @@ spec:
   interval: 5m0s
   subscriptions:
   - git:
-      repoURL: https://github.com/airnity/argo-labs
+      repoURL: https://github.com/airnity/argo-addons
       branch: main
       strictSemvers: false
 ---
@@ -38,26 +38,25 @@ spec:
       - as: gitClone
         config:
           checkout:
-            - branch: rendered/test
+            - branch: rendered/${{ ctx.project}}
               path: ./target
-          repoURL: https://github.com/airnity/argo-labs
+              create: true
+          repoURL: https://github.com/airnity/argo-addons
         uses: git-clone
       - uses: airnity-render
         config:
-          repoURL: https://github.com/example/sample-app.git
+          skipTlsVerify: true
+          argoRepoName: argo-addons
           gitRef:
             type: commit
-            ref: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+            ref: ${{ commitFrom("https://github.com/airnity/argo-addons").ID }}
           outPath: ./target
           apps:
           - clusterIds:
-            - dev-east
+            - gcp-sanbox-central
+            - gcp-sandbox-admin
             applicationManifestNames:
-            - frontend
-          - clusterIds:
-            - dev-west
-            applicationManifestNames:
-            - backend
+            - gcp-external-dns
           timeout: 60s
       - as: gitCommit
         uses: git-commit
@@ -68,21 +67,21 @@ spec:
         uses: git-push
         config:
           path: ./target
-          targetBranch: kargo-promotion-test
+          targetBranch: rendered/${{ ctx.project}}-${{ ctx.stage}}
           maxAttempts: 5
       - as: openPr
         uses: git-open-pr
         config:
-          repoURL: https://github.com/airnity/argo-labs
+          repoURL: https://github.com/airnity/argo-addons
           provider: github
           createTargetBranch: true
-          sourceBranch: kargo-promotion-test
-          targetBranch: rendered/test
+          sourceBranch: rendered/${{ ctx.project}}-${{ ctx.stage}}
+          targetBranch: rendered/${{ ctx.project}}
           title: Test PR for Kargo Promotion
       - as: waitForPr
         uses: git-wait-for-pr
         config:
-          repoURL: https://github.com/airnity/argo-labs
+          repoURL: https://github.com/airnity/argo-addons
           prNumber: ${{ outputs.openPr.prNumber }}
 # ---
 # apiVersion: kargo.akuity.io/v1alpha1
@@ -105,7 +104,7 @@ spec:
 #         config:
 #           environment: staging
 #           repoURL: https://github.com/example/sample-app.git
-#           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+#           commit: ${{ commitFrom("https://github.com/airnity/argo-addons").ID }}
 #           deployments:
 #           - clusterId: staging-east
 #             appName: frontend
@@ -135,7 +134,7 @@ spec:
 #         config:
 #           environment: prod
 #           repoURL: https://github.com/example/sample-app.git
-#           commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+#           commit: ${{ commitFrom("https://github.com/airnity/argo-addons").ID }}
 #           deployments:
 #           - clusterId: prod-east
 #             appName: frontend
