@@ -9,13 +9,16 @@ type ComposeOutput map[string]interface{}
 type AirnityRendererConfig struct {
 	// List of app targets with cluster and app information.
 	Apps []App `json:"apps"`
+	// The ArgoCD Git repository name.
+	ArgoRepoName string `json:"argoRepoName"`
 	// The Git reference to use for the generation, such as a branch, tag, or commit.
 	GitRef GitRef `json:"gitRef"`
 	// The path within the working directory where rendered manifests should be written. If not
 	// specified, manifests are written to the root of the working directory.
 	OutPath string `json:"outPath,omitempty"`
-	// The Git repository URL.
-	RepoURL string `json:"repoURL"`
+	// If true, TLS verification is skipped when accessing the Git repository. This is not
+	// recommended for production use.
+	SkipTLSVerify bool `json:"skipTlsVerify,omitempty"`
 	// The maximum time to wait for the request to complete. If not specified, the default is 30
 	// seconds.
 	Timeout string `json:"timeout,omitempty"`

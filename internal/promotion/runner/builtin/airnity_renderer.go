@@ -3,6 +3,7 @@ package builtin
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,6 +27,10 @@ const (
 	airnityContentTypeJSON  = "application/json"
 	airnityRequestTimeout   = 30 * time.Second
 	airnityMaxResponseBytes = 10 << 20 // 10MB
+)
+
+var (
+	environments = []string{"sandbox", "prod", "dev", "it"}
 )
 
 // airnityRenderer is an implementation of the promotion.StepRunner interface that
@@ -86,9 +91,13 @@ type KubernetesResource struct {
 
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	ClusterID string               `json:"cluster_id"`
-	AppName   string               `json:"app_name"`
+	ClusterID string               `json:"clusterId"`
+	AppName   string               `json:"appName"`
 	Resources []KubernetesResource `json:"resources"`
+}
+
+type AirnityResponse struct {
+	Data []AirnityResponseItem `json:"data"`
 }
 
 func (a *airnityRenderer) run(
@@ -103,33 +112,42 @@ func (a *airnityRenderer) run(
 		Apps:   cfg.Apps,
 	}
 
-	// Use the fixed URL to the mock airnity server
-	url := "http://app-generator.kargo.svc.cluster.local"
+	for _, env := range environments {
+		fmt.Println("Running airnity-renderer for environment:", env)
+		// Use the fixed URL to the mock airnity server
+		url := fmt.Sprintf("https://argocd-apps-generator.admin.%s.airnity.private/api/v1/repos/%s/render-applications", env, cfg.ArgoRepoName)
 
-	// Make the HTTP request
-	responseItems, err := a.makeHTTPRequest(ctx, url, cfg, requestPayload)
-	if err != nil {
-		return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
-			fmt.Errorf("error making HTTP request to airnity server: %w", err)
-	}
-
-	logger.Debug("received response from airnity server", "items", len(responseItems))
-
-	// Determine output directory
-	outDir := stepCtx.WorkDir
-	if cfg.OutPath != "" {
-		var err error
-		outDir, err = securejoin.SecureJoin(stepCtx.WorkDir, cfg.OutPath)
+		// Make the HTTP request
+		responseData, err := a.makeHTTPRequest(ctx, url, cfg, requestPayload)
 		if err != nil {
 			return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
-				fmt.Errorf("could not secure join outPath %q: %w", cfg.OutPath, err)
+				fmt.Errorf("error making HTTP request to airnity server: %w", err)
 		}
-	}
+		if responseData == nil {
+			return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
+				fmt.Errorf("no data received from airnity server")
+		}
 
-	// Write manifests to files
-	if err := a.writeManifests(ctx, outDir, responseItems); err != nil {
-		return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
-			fmt.Errorf("error writing manifests: %w", err)
+		responseItems := responseData.Data
+
+		logger.Debug("received response from airnity server", "items", len(responseItems))
+
+		// Determine output directory
+		outDir := stepCtx.WorkDir
+		if cfg.OutPath != "" {
+			var err error
+			outDir, err = securejoin.SecureJoin(stepCtx.WorkDir, cfg.OutPath)
+			if err != nil {
+				return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
+					fmt.Errorf("could not secure join outPath %q: %w", cfg.OutPath, err)
+			}
+		}
+
+		// Write manifests to files
+		if err := a.writeManifests(ctx, outDir, responseItems); err != nil {
+			return promotion.StepResult{Status: kargoapi.PromotionStepStatusErrored},
+				fmt.Errorf("error writing manifests: %w", err)
+		}
 	}
 
 	return promotion.StepResult{Status: kargoapi.PromotionStepStatusSucceeded}, nil
@@ -140,7 +158,7 @@ func (a *airnityRenderer) makeHTTPRequest(
 	url string,
 	cfg builtin.AirnityRendererConfig,
 	payload AirnityRequest,
-) ([]AirnityResponseItem, error) {
+) (*AirnityResponse, error) {
 	logger := logging.LoggerFromContext(ctx)
 
 	// Serialize the request payload
@@ -184,12 +202,12 @@ func (a *airnityRenderer) makeHTTPRequest(
 
 	logger.Trace("received response from airnity server", "body", string(bodyBytes))
 
-	var responseItems []AirnityResponseItem
+	var responseItems AirnityResponse
 	if err := json.Unmarshal(bodyBytes, &responseItems); err != nil {
 		return nil, fmt.Errorf("error unmarshaling response: %w", err)
 	}
 
-	return responseItems, nil
+	return &responseItems, nil
 }
 
 func (a *airnityRenderer) getHTTPClient(cfg builtin.AirnityRendererConfig) *http.Client {
@@ -200,9 +218,19 @@ func (a *airnityRenderer) getHTTPClient(cfg builtin.AirnityRendererConfig) *http
 		}
 	}
 
-	return &http.Client{
+	client := &http.Client{
 		Timeout: timeout,
 	}
+
+	if cfg.SkipTLSVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+	}
+
+	return client
 }
 
 func (a *airnityRenderer) writeManifests(
@@ -317,7 +345,7 @@ func (a *airnityRenderer) writeResourceToFile(
 	if resource.Namespace != nil {
 		namespace = *resource.Namespace
 	}
-	relativePath := a.generateFilePath(resource.Group, resource.Kind, resource.Name, namespace, index)
+	relativePath := a.generateFilePath(resource.Group, resource.Kind, resource.Name, namespace)
 	filePath, err := securejoin.SecureJoin(appDir, relativePath)
 	if err != nil {
 		return fmt.Errorf("error joining path: %w", err)
@@ -344,35 +372,27 @@ func (a *airnityRenderer) writeResourceToFile(
 	return nil
 }
 
-func (a *airnityRenderer) generateFilePath(group, kind, name, namespace string, index int) string {
+func (a *airnityRenderer) generateFilePath(group, kind, name, namespace string) string {
 	// Build filename path: group/kind/namespace/name.yaml
-	pathComponents := []string{}
+	filenameParts := []string{}
 
 	// Add group (use "core" for empty group)
 	if group != "" {
-		pathComponents = append(pathComponents, strings.ToLower(group))
-	} else {
-		pathComponents = append(pathComponents, "core")
+		filenameParts = append(filenameParts, strings.ToLower(group))
 	}
 
 	// Add kind
-	pathComponents = append(pathComponents, strings.ToLower(kind))
+	filenameParts = append(filenameParts, strings.ToLower(kind))
 
 	// Add namespace (use "cluster-scoped" for empty namespace)
 	if namespace != "" {
-		pathComponents = append(pathComponents, namespace)
-	} else {
-		pathComponents = append(pathComponents, "cluster-scoped")
+		filenameParts = append(filenameParts, namespace)
 	}
 
-	// Build filename
-	var filename string
+	// Add name (use index if no name)
 	if name != "" {
-		filename = name + ".yaml"
-	} else {
-		// Fallback to index if no name
-		filename = fmt.Sprintf("resource-%d.yaml", index)
+		filenameParts = append(filenameParts, name)
 	}
 
-	return filepath.Join(append(pathComponents, filename)...)
+	return strings.Join(filenameParts, "_") + ".yaml"
 }
