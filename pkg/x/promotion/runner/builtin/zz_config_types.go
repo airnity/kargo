@@ -7,10 +7,10 @@ type CommonDefs interface{}
 type ComposeOutput map[string]interface{}
 
 type AirnityRendererConfig struct {
-	// The commit SHA to render manifests for.
-	Commit string `json:"commit"`
-	// List of deployment targets with cluster and app information.
-	Deployments []Deployment `json:"deployments"`
+	// List of app targets with cluster and app information.
+	Apps []App `json:"apps"`
+	// The Git reference to use for the generation, such as a branch, tag, or commit.
+	GitRef GitRef `json:"gitRef"`
 	// The path within the working directory where rendered manifests should be written. If not
 	// specified, manifests are written to the root of the working directory.
 	OutPath string `json:"outPath,omitempty"`
@@ -21,11 +21,19 @@ type AirnityRendererConfig struct {
 	Timeout string `json:"timeout,omitempty"`
 }
 
-type Deployment struct {
-	// The name of the application to deploy.
-	AppName string `json:"appName"`
-	// The ID of the cluster where the app should be deployed.
-	ClusterID string `json:"clusterId"`
+type App struct {
+	// The names of the application manifests to be rendered.
+	ApplicationManifestNames []string `json:"applicationManifestNames"`
+	// The IDs of the clusters where the app should be deployed.
+	ClusterIDS []string `json:"clusterIds"`
+}
+
+// The Git reference to use for the generation, such as a branch, tag, or commit.
+type GitRef struct {
+	// The Git reference value, such as a branch name, tag name, or commit SHA.
+	Ref string `json:"ref"`
+	// The type of Git reference, e.g., 'branch', 'tag', or 'commit'.
+	Type string `json:"type"`
 }
 
 type ArgoCDUpdateConfig struct {

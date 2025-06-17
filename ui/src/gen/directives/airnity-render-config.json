@@ -2,19 +2,45 @@
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "title": "AirnityRendererConfig",
  "definitions": {
-  "deployment": {
+  "app": {
    "type": "object",
    "additionalProperties": false,
    "properties": {
-    "clusterId": {
-     "type": "string",
+    "clusterIds": {
+     "type": "array",
      "minLength": 1,
-     "description": "The ID of the cluster where the app should be deployed."
+     "description": "The IDs of the clusters where the app should be deployed.",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The ID of a cluster."
+     }
     },
-    "appName": {
+    "applicationManifestNames": {
+     "type": "array",
+     "minLength": 1,
+     "description": "The names of the application manifests to be rendered.",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name of an application manifest."
+     }
+    }
+   }
+  },
+  "gitRef": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "type": {
      "type": "string",
      "minLength": 1,
-     "description": "The name of the application to deploy."
+     "description": "The type of Git reference, e.g., 'branch', 'tag', or 'commit'."
+    },
+    "ref": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The Git reference value, such as a branch name, tag name, or commit SHA."
     }
    }
   }
@@ -27,30 +53,52 @@
    "minLength": 1,
    "description": "The Git repository URL."
   },
-  "commit": {
-   "type": "string",
-   "minLength": 1,
-   "description": "The commit SHA to render manifests for."
+  "gitRef": {
+   "type": "object",
+   "description": "The Git reference to use for the generation, such as a branch, tag, or commit.",
+   "additionalProperties": false,
+   "properties": {
+    "type": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The type of Git reference, e.g., 'branch', 'tag', or 'commit'."
+    },
+    "ref": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The Git reference value, such as a branch name, tag name, or commit SHA."
+    }
+   }
   },
-  "deployments": {
+  "apps": {
    "type": "array",
    "items": {
     "type": "object",
     "additionalProperties": false,
     "properties": {
-     "clusterId": {
-      "type": "string",
+     "clusterIds": {
+      "type": "array",
       "minLength": 1,
-      "description": "The ID of the cluster where the app should be deployed."
+      "description": "The IDs of the clusters where the app should be deployed.",
+      "items": {
+       "type": "string",
+       "minLength": 1,
+       "description": "The ID of a cluster."
+      }
      },
-     "appName": {
-      "type": "string",
+     "applicationManifestNames": {
+      "type": "array",
       "minLength": 1,
-      "description": "The name of the application to deploy."
+      "description": "The names of the application manifests to be rendered.",
+      "items": {
+       "type": "string",
+       "minLength": 1,
+       "description": "The name of an application manifest."
+      }
      }
     }
    },
-   "description": "List of deployment targets with cluster and app information."
+   "description": "List of app targets with cluster and app information."
   },
   "timeout": {
    "type": "string",
