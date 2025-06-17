@@ -37,74 +37,89 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 			},
 		},
 		{
-			name: "commit not specified",
+			name: "gitRef not specified",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
 			},
 			expectedProblems: []string{
-				"(root): commit is required",
+				"(root): gitRef is required",
 			},
 		},
 		{
-			name: "deployments not specified",
+			name: "apps not specified",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
 			},
 			expectedProblems: []string{
-				"(root): deployments is required",
+				"(root): apps is required",
 			},
 		},
 		{
-			name: "deployments is empty array",
-			config: promotion.Config{
-				"repoURL":     "https://github.com/example/repo",
-				"commit":      "abc123",
-				"deployments": []any{},
-			},
-			expectedProblems: []string{
-				"deployments: Array must have at least 1 items",
-			},
-		},
-		{
-			name: "deployment missing clusterId",
+			name: "apps is empty array",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
-				"deployments": []any{
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{},
+			},
+			expectedProblems: []string{
+				"apps: Array must have at least 1 items",
+			},
+		},
+		{
+			name: "app missing clusterIds",
+			config: promotion.Config{
+				"repoURL": "https://github.com/example/repo",
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
 					map[string]any{
-						"appName": "test-app",
+						"applicationManifestNames": []string{"test-app"},
 					},
 				},
 			},
 			expectedProblems: []string{
-				"deployments.0: clusterId is required",
+				"apps.0: clusterIds is required",
 			},
 		},
 		{
-			name: "deployment missing appName",
+			name: "app missing applicationManifestNames",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
-				"deployments": []any{
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
 					map[string]any{
-						"clusterId": "test-cluster",
+						"clusterIds": []string{"test-cluster"},
 					},
 				},
 			},
 			expectedProblems: []string{
-				"deployments.0: appName is required",
+				"apps.0: applicationManifestNames is required",
 			},
 		},
 		{
 			name: "invalid timeout format",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
-				"deployments": []any{
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
 					map[string]any{
-						"clusterId": "test-cluster",
-						"appName":   "test-app",
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
 					},
 				},
 				"timeout": "invalid",
@@ -117,11 +132,14 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 			name: "valid configuration",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
-				"deployments": []any{
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
 					map[string]any{
-						"clusterId": "test-cluster",
-						"appName":   "test-app",
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
 					},
 				},
 			},
@@ -131,11 +149,14 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 			name: "valid configuration with timeout",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
-				"deployments": []any{
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
 					map[string]any{
-						"clusterId": "test-cluster",
-						"appName":   "test-app",
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
 					},
 				},
 				"timeout": "30s",
@@ -146,11 +167,14 @@ func Test_airnityRenderer_validate_New(t *testing.T) {
 			name: "valid configuration with outPath",
 			config: promotion.Config{
 				"repoURL": "https://github.com/example/repo",
-				"commit":  "abc123",
-				"deployments": []any{
+				"gitRef": map[string]any{
+					"ref":  "abc123",
+					"type": "commit",
+				},
+				"apps": []any{
 					map[string]any{
-						"clusterId": "test-cluster",
-						"appName":   "test-app",
+						"clusterIds":               []string{"test-cluster"},
+						"applicationManifestNames": []string{"test-app"},
 					},
 				},
 				"outPath": "manifests",
@@ -190,11 +214,14 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 			name: "successful render with single app",
 			config: builtin.AirnityRendererConfig{
 				RepoURL: "https://github.com/example/repo",
-				Commit:  "abc123",
-				Deployments: []builtin.Deployment{
+				GitRef: builtin.GitRef{
+					Ref:  "abc123",
+					Type: "commit",
+				},
+				Apps: []builtin.App{
 					{
-						ClusterID: "prod-east",
-						AppName:   "frontend",
+						ClusterIDS:               []string{"prod-east"},
+						ApplicationManifestNames: []string{"frontend"},
 					},
 				},
 			},
@@ -265,11 +292,14 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 			name: "server returns error status",
 			config: builtin.AirnityRendererConfig{
 				RepoURL: "https://github.com/example/repo",
-				Commit:  "abc123",
-				Deployments: []builtin.Deployment{
+				GitRef: builtin.GitRef{
+					Ref:  "abc123",
+					Type: "commit",
+				},
+				Apps: []builtin.App{
 					{
-						ClusterID: "prod-east",
-						AppName:   "frontend",
+						ClusterIDS:               []string{"prod-east"},
+						ApplicationManifestNames: []string{"frontend"},
 					},
 				},
 			},
@@ -299,9 +329,8 @@ func Test_airnityRenderer_run_New(t *testing.T) {
 				err = json.Unmarshal(bodyBytes, &requestPayload)
 				require.NoError(t, err)
 
-				assert.Equal(t, tt.config.RepoURL, requestPayload.RepoURL)
-				assert.Equal(t, tt.config.Commit, requestPayload.Commit)
-				assert.Len(t, requestPayload.Deployments, len(tt.config.Deployments))
+				assert.Equal(t, tt.config.GitRef.Ref, requestPayload.GitRef.Ref)
+				assert.Len(t, requestPayload.Apps, len(tt.config.Apps))
 
 				// Set response status
 				w.WriteHeader(tt.serverStatus)

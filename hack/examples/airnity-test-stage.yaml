@@ -45,13 +45,19 @@ spec:
       - uses: airnity-render
         config:
           repoURL: https://github.com/example/sample-app.git
-          commit: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
+          gitRef:
+            type: commit
+            ref: ${{ commitFrom("https://github.com/airnity/argo-labs").ID }}
           outPath: ./target
-          deployments:
-          - clusterId: dev-east
-            appName: frontend
-          - clusterId: dev-west
-            appName: backend
+          apps:
+          - clusterIds:
+            - dev-east
+            applicationManifestNames:
+            - frontend
+          - clusterIds:
+            - dev-west
+            applicationManifestNames:
+            - backend
           timeout: 60s
       - as: gitCommit
         uses: git-commit

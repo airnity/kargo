@@ -68,34 +68,27 @@ func (a *airnityRenderer) validate(cfg promotion.Config) error {
 	return validate(a.schemaLoader, gojsonschema.NewGoLoader(cfg), a.Name())
 }
 
-// AirnityDeployment represents a deployment target with cluster and app information
-type AirnityDeployment struct {
-	ClusterID string `json:"clusterId"`
-	AppName   string `json:"appName"`
-}
-
 // AirnityRequest represents the request payload sent to the airnity server
 type AirnityRequest struct {
-	RepoURL     string              `json:"repoURL"`
-	Commit      string              `json:"commit"`
-	Deployments []AirnityDeployment `json:"deployments"`
+	GitRef builtin.GitRef `json:"gitRef"`
+	Apps   []builtin.App  `json:"apps"`
 }
 
 // KubernetesResource represents a Kubernetes resource with metadata
 type KubernetesResource struct {
-	Group     string `json:"group"`
-	Version   string `json:"version"`
-	Kind      string `json:"kind"`
-	Name      string `json:"name"`
+	Group     string  `json:"group"`
+	Version   string  `json:"version"`
+	Kind      string  `json:"kind"`
+	Name      string  `json:"name"`
 	Namespace *string `json:"namespace"`
-	Manifest  any    `json:"manifest"`
+	Manifest  any     `json:"manifest"`
 }
 
 // AirnityResponseItem represents a single item in the response from airnity server
 type AirnityResponseItem struct {
-	ClusterID string                `json:"cluster_id"`
-	AppName   string                `json:"app_name"`
-	Resources []KubernetesResource  `json:"resources"`
+	ClusterID string               `json:"cluster_id"`
+	AppName   string               `json:"app_name"`
+	Resources []KubernetesResource `json:"resources"`
 }
 
 func (a *airnityRenderer) run(
@@ -105,19 +98,9 @@ func (a *airnityRenderer) run(
 ) (promotion.StepResult, error) {
 	logger := logging.LoggerFromContext(ctx)
 
-	// Prepare the request payload
-	deployments := make([]AirnityDeployment, len(cfg.Deployments))
-	for i, dep := range cfg.Deployments {
-		deployments[i] = AirnityDeployment{
-			ClusterID: dep.ClusterID,
-			AppName:   dep.AppName,
-		}
-	}
-
 	requestPayload := AirnityRequest{
-		RepoURL:     cfg.RepoURL,
-		Commit:      cfg.Commit,
-		Deployments: deployments,
+		GitRef: cfg.GitRef,
+		Apps:   cfg.Apps,
 	}
 
 	// Use the fixed URL to the mock airnity server
