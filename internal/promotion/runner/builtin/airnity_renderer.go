@@ -75,8 +75,9 @@ func (a *airnityRenderer) validate(cfg promotion.Config) error {
 
 // AirnityRequest represents the request payload sent to the airnity server
 type AirnityRequest struct {
-	GitRef builtin.GitRef `json:"gitRef"`
-	Apps   []builtin.App  `json:"apps"`
+	GitRef         builtin.GitRef `json:"gitRef"`
+	Apps           []builtin.App  `json:"apps"`
+	RepositoryName string         `json:"repositoryName"`
 }
 
 // KubernetesResource represents a Kubernetes resource with metadata
@@ -108,14 +109,15 @@ func (a *airnityRenderer) run(
 	logger := logging.LoggerFromContext(ctx)
 
 	requestPayload := AirnityRequest{
-		GitRef: cfg.GitRef,
-		Apps:   cfg.Apps,
+		GitRef:         cfg.GitRef,
+		Apps:           cfg.Apps,
+		RepositoryName: cfg.ArgoRepoName,
 	}
 
 	for _, env := range environments {
 		fmt.Println("Running airnity-renderer for environment:", env)
 		// Use the fixed URL to the mock airnity server
-		url := fmt.Sprintf("https://argocd-apps-generator.admin.%s.airnity.private/api/v1/repos/%s/render-applications", env, cfg.ArgoRepoName)
+		url := fmt.Sprintf("https://argocd-apps-generator.admin.%s.airnity.private/api/v1/generate-manifests", env)
 
 		// Make the HTTP request
 		responseData, err := a.makeHTTPRequest(ctx, url, cfg, requestPayload)
