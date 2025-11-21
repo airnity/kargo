@@ -223,8 +223,8 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.15.17)(jiti@1.21.7)(less@4.3.0)(yaml@2.8.0)
       zx:
-        specifier: ^8.7.0
-        version: 8.7.0
+        specifier: ^8.8.5
+        version: 8.8.5
 
 packages:
 
@@ -3666,8 +3666,8 @@ packages:
       react:
         optional: true
 
-  zx@8.7.0:
-    resolution: {integrity: sha512-pArftqj5JV/er8p+czFZwF+k6SbCldl7kcfCR+rIiDIh3gUsLB0F3Xh05diP8PzToZ39D/GWeFoVFimjHQkbAg==}
+  zx@8.8.5:
+    resolution: {integrity: sha512-SNgDF5L0gfN7FwVOdEFguY3orU5AkfFZm9B5YSHog/UDHv+lvmd82ZAsOenOkQixigwH2+yyH198AwNdKhj+RA==}
     engines: {node: '>= 12.17.0'}
     hasBin: true
 
@@ -7623,4 +7623,4 @@ snapshots:
       '@types/react': 19.1.8
       react: 19.1.0
 
-  zx@8.7.0: {}
+  zx@8.8.5: {}
